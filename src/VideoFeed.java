@@ -21,23 +21,36 @@ import org.opencv.imgproc.Imgproc;
 import java.lang.Math;
 
 
+
+
 public class VideoFeed extends JPanel implements Runnable {
 	private Image img;
 	private VideoCapture cap;
 	private Mat CVimg; // Matrix for storing image
 	
-	private final int r = 480, c = 640;
+	//colour 'constants'
+	Scalar BLUE = new Scalar(255,0,0);
+	Scalar RED = new Scalar (0,0,255);
+	Scalar GREEN = new Scalar(0,255,0);
+	Scalar WHITE = new Scalar (255,255,255);
+	Scalar BLACK = new Scalar (0,0,0);
+	Scalar GRAY = new Scalar (115,115,115);
+
+	
+	private final static int rows = 480;
+	private static final int cols = 640;
 	private final int fpR = 100, fpC = 640;
 	//http://ninghang.blogspot.ca/2012/11/list-of-mat-type-in-opencv.html lists the types
-	private Mat flightPanel = new Mat(fpR, fpC, 16);  //24 = CV_8UC4, 16 = CV_8UC3 ->  is the type used in the webcam feed - might be different for stream
-	
+	private Mat flightPanel = new Mat(fpR, fpC, 16, GRAY);  //24 = CV_8UC4, 16 = CV_8UC3 ->  is the type used in the webcam feed - might be different for stream
+
+
 	private int FrameNum = 0;
 	
 	
 	private double rollAng;  
 	private double airSpd; 
 	private double altitude; 
-	private DecimalFormat df = new DecimalFormat("#.00");
+	private DecimalFormat df = new DecimalFormat("#000.00");
 	Rect altDrawArea = new Rect(new Point(60,0), new Point(175,50));
 	Rect airSpdDrawArea = new Rect(new Point(275,0), new Point(500,50));
 
@@ -54,14 +67,8 @@ public class VideoFeed extends JPanel implements Runnable {
 		if (!cap.isOpened()) { System.out.println("Could not open video feed.");}
 		CVimg = new Mat();
 		
-		//initialize flight panel to be grey
-		//NOTE -> Java byte is -127 to 128, BUT it supports the cast ie. byte(255) = -1 in java which is interpreted as 255
-		for(int x = 0; x<fpC; x++ )
-			for(int y = 0; y < fpR; y++)
-				flightPanel.put(y, x, new byte[]{(byte)110, (byte)110, (byte)110}); 
-		
-		Core.putText(flightPanel, "Alt:", new Point(5,50), 0, 1, new Scalar(0, 0, 0), 2);  //last 4: font type, size, colour, thickness
-		Core.putText(flightPanel, "Spd:", new Point(200,50), 0, 1, new Scalar(0, 0, 0), 2);  //last 4: font type, size, colour, thickness
+		Core.putText(flightPanel, "Alt:", new Point(5,50), 0, 1, BLACK, 2);  //last 4: font type, size, colour, thickness
+		Core.putText(flightPanel, "Spd:", new Point(200,50), 0, 1, BLACK, 2);  //last 4: font type, size, colour, thickness
 
 		
 		//RJD added
@@ -142,10 +149,11 @@ public class VideoFeed extends JPanel implements Runnable {
 		//System.out.println("Rows = " + matrix.rows() + "  Cols = " + matrix.cols());
 		//System.out.println("FP Rows = " + flightPanel.rows() + "  Cols = " + flightPanel.cols());
 		
+		updateStatus();  //get's the new values of roll/pitch/alt etc.
+		drawHorizon();	//draw the lines representing horizon
 		
-		updateStatus();
-		drawHorizon();		
-		printInfo();
+		if(FrameNum % 5 == 0)  //avoid updating too fast for increased readability
+			printInfo();  //print values to image
 
 		//add the flightPanel to the matrix
 		CVimg.push_back(flightPanel);
@@ -153,38 +161,47 @@ public class VideoFeed extends JPanel implements Runnable {
 	}
 	
 	
-	//need to change the fundamental running of this function - have fixed line length for each section, and rotate/translate lines to be centered on middle line
-	private void drawHorizon(){
+	//some constants for the drawHorizon Function
+	Point origin = new Point(cols/2, rows/2);
+	private final static int r = (cols-100)/2;  //radius of line
+	private final static int verticalOffset = 100;
+	
+	private void drawHorizon(){		//let 0 degrees be neutral, and -45 degrees be /  and 45 degrees be \
 		
-		int dy = (int) (((c-100)/2)*Math.tan(rollAng*Math.PI/180));
-		Core.line(CVimg, new Point(50,r/2-dy), new Point(c-50,r/2+dy), new Scalar(0,255,0), 1, Core.LINE_AA, 0); //middle line
-		Core.line(CVimg, new Point(125,r/2-dy*(c-250)/(c-100)+50), new Point(c-125,r/2+dy*(c-250)/(c-100)+50), new Scalar(0,255,0), 1, Core.LINE_AA, 0);  //line below
-		Core.line(CVimg, new Point(200,r/2-dy*(c-400)/(c-100)+100), new Point(c-200,r/2+dy*(c-400)/(c-100)+100), new Scalar(0,255,0), 1, Core.LINE_AA, 0);  //line below
-		Core.line(CVimg, new Point(125,r/2-dy*(c-250)/(c-100)-50), new Point(c-125,r/2+dy*(c-250)/(c-100)-50), new Scalar(0,255,0), 1, Core.LINE_AA, 0);  //line above
-		Core.line(CVimg, new Point(200,r/2-dy*(c-400)/(c-100)-100), new Point(c-200,r/2+dy*(c-400)/(c-100)-100), new Scalar(0,255,0), 1, Core.LINE_AA, 0);  //line below
+		//some math to use polar coodinates
+		double cosTheta = Math.cos(rollAng*Math.PI/180);
+		double sinTheta = Math.sin(rollAng*Math.PI/180);		
+		int dx =  (int)(r*cosTheta), dy = (int) (r*sinTheta);  //distances from the origin to end of line along x and y axis
+		int xoff = (int) (verticalOffset*sinTheta), yoff = (int) (-verticalOffset*cosTheta);  //offset for the upper/lower lines
+		
+		//draw the actual lines
+		Core.line(CVimg, new Point(origin.x + dx, origin.y + dy), new Point(origin.x-dx, origin.y - dy),GREEN, 1, Core.LINE_AA, 0);  //middle line
+		Core.line(CVimg, new Point(origin.x + xoff + dx/2, origin.y + yoff + dy/2), new Point(origin.x+xoff-dx/2, origin.y + yoff - dy/2),GREEN, 1, Core.LINE_AA, 0);  //upper line
+		Core.line(CVimg, new Point(origin.x - xoff + dx/2, origin.y - yoff + dy/2), new Point(origin.x - xoff-dx/2, origin.y - yoff - dy/2),GREEN, 1, Core.LINE_AA, 0); //lower line
 		
 	}
 	
+	int sign=1;
 	private void updateStatus(){
 		//These values will need to come from accessors
-		rollAng = FrameNum%180;  //to watch it move
-		airSpd = 10.5*(FrameNum%12);
-		altitude = 40*(FrameNum%22);
+		rollAng+= sign;  //to watch it move
+		if(rollAng > 45 || rollAng <-45) sign = -sign;
+		
+		airSpd = 0.25*(FrameNum%140);
+		altitude = 0.5*(FrameNum%311);
 		//possible GPS, pitch, etc.
 		
 	}
 	
 	private void printInfo(){
 		
-		//refill old text area
-		Core.rectangle(flightPanel, altDrawArea.tl(), altDrawArea.br(), new Scalar(110,110,110), -1);
-		Core.rectangle(flightPanel, airSpdDrawArea.tl(), airSpdDrawArea.br(), new Scalar(110,110,110), -1);
+		//refill old text area 
+		Core.rectangle(flightPanel, altDrawArea.tl(), altDrawArea.br(), GRAY, -1);  //-1 indicates it's filled in
+		Core.rectangle(flightPanel, airSpdDrawArea.tl(), airSpdDrawArea.br(), GRAY, -1);
 		
-		//draw text
-		Core.putText(flightPanel, df.format(altitude), new Point(altDrawArea.x,altDrawArea.y+altDrawArea.height-1), 0, 1, new Scalar(0, 0, 0), 2);  //last 4: font type, size, colour, thickness
-		Core.putText(flightPanel, df.format(airSpd), new Point(airSpdDrawArea.x,airSpdDrawArea.y+airSpdDrawArea.height-1), 0, 1, new Scalar(0, 0, 0), 2);  //last 4: font type, size, colour, thickness
-
-
+		//draw text -> last 4 arguements: font type, size, colour, thickness
+		Core.putText(flightPanel, df.format(altitude), new Point(altDrawArea.x,altDrawArea.y+altDrawArea.height-1), 0, 1, BLACK, 2);  
+		Core.putText(flightPanel, df.format(airSpd), new Point(airSpdDrawArea.x,airSpdDrawArea.y+airSpdDrawArea.height-1), 0, 1, BLACK, 2);  
 		
 	}
 
