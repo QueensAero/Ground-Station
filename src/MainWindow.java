@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 
@@ -32,6 +33,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class MainWindow extends JPanel implements PacketListener {
 	
+	private VideoFeed feed;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData;
@@ -46,6 +48,10 @@ public class MainWindow extends JPanel implements PacketListener {
 	long connectTime;
 	boolean btnsEnabled = false;
 	
+	public void updateVideoFeed() {
+		feed.update();
+		
+	}
 	public MainWindow (SerialCommunicator sc) {
 		serialComm = sc;
 		initializeComponents();
@@ -363,14 +369,29 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		
 		JPanel panel_1 = new JPanel();
-		panel_1.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		panel_1.setLayout(new BorderLayout(0, 0));
+		//panel_1.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
+		//panel_1.setLayout(new GridLayout(2, 0)); Commented out so full video feed
 				
+		JPanel videoFeedArea = new JPanel();
+		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
+		feed = new VideoFeed();
+		videoFeedArea.add(feed);
+		//testing various sizes
+		//videoFeedArea.setSize(new Dimension(640, 480));
+		videoFeedArea.setSize(new Dimension(640, 700));
+
+		
+		
 		dataLoggerTextArea = new JTextArea();
+		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
+		dataLoggerTextArea.setMinimumSize(new Dimension(640, 400));	//added
 		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
 		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		panel_1.add(dataLoggerScroller, BorderLayout.CENTER);
+		
+		//panel_1.add(videoFeedArea);
+		panel_1.add(videoFeedArea, BorderLayout.SOUTH);  //used to increase size of video area temporarily
 		dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
 
 		
@@ -396,6 +417,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		return false;
 	}
 	
+	
+	/* To have access to this...  probably need to create a class variable dblArr, then add a couple accessors */
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		if (str.substring(0, 1).equals("p")) {

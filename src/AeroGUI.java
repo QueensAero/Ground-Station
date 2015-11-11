@@ -1,11 +1,22 @@
 import java.awt.EventQueue;
+
 import javax.swing.JFrame;
+
 import java.awt.BorderLayout;
+
 import javax.swing.UIManager;
 
-public class AeroGUI {
+import org.opencv.core.Core;
 
+public class AeroGUI {
+	private static MainWindow main;
+	
 	private JFrame frame;
+	
+	static {
+        // Load the native OpenCV library
+		System.loadLibrary( Core.NATIVE_LIBRARY_NAME );
+	}
 
 	/**
 	 * Launch the application.
@@ -17,6 +28,10 @@ public class AeroGUI {
 					UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 					AeroGUI window = new AeroGUI();
 					window.frame.setVisible(true);
+					//while(true)
+					//{
+					//	main.updateVideoFeed();
+					//}
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -41,7 +56,7 @@ public class AeroGUI {
 		frame.getContentPane().setLayout(new BorderLayout());
 		
 		SerialCommunicator sc = new SerialCommunicator();
-		MainWindow main = new MainWindow(sc);
+		main = new MainWindow(sc);
 		frame.getContentPane().add(main, BorderLayout.CENTER);
 	}
 
