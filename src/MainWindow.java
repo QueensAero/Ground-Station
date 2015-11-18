@@ -38,6 +38,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData;
 	private JButton btnDrop, btnCamLeft, btnCamRight, btnCamCenter, btnSensorReset, btnPlaneRestart; //servo control buttons
+	private JButton btnStartRecording;  //button to start/stop recording
 	private PrintStream console; //to display all console messages
 	private PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
@@ -233,6 +234,15 @@ public class MainWindow extends JPanel implements PacketListener {
 				dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
 			}
 		});
+		
+		btnStartRecording.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+				//add response here
+				System.out.println("NOT SET UP YET-> NEED ACCESS TO VIDEOFEED CLASS");
+					
+			}
+		});
 	}
 	
 	private void dropPackage() {
@@ -337,6 +347,11 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnPlaneRestart = new JButton("Plane Restart");
 		servoButtonPanel.add(btnPlaneRestart);
 		
+		//RJD added
+		btnStartRecording = new JButton("Start/Stop Recording");
+		servoButtonPanel.add(btnStartRecording);
+		
+		
 		JPanel servoTextPanel = new JPanel();
 		servoControlPanel.add(servoTextPanel);
 		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
@@ -378,6 +393,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		videoFeedArea.add(feed);
 		//testing various sizes
 		//videoFeedArea.setSize(new Dimension(640, 480));
+		
 		videoFeedArea.setSize(new Dimension(640, 700));
 
 		

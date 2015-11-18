@@ -28,10 +28,8 @@ public class AeroGUI {
 					UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 					AeroGUI window = new AeroGUI();
 					window.frame.setVisible(true);
-					//while(true)
-					//{
-					//	main.updateVideoFeed();
-					//}
+					
+					
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -61,3 +59,4 @@ public class AeroGUI {
 	}
 
 }
+

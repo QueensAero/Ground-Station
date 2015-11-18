@@ -10,6 +10,11 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.TooManyListenersException;
 
+
+
+
+
+
 interface PacketListener {
 	void packetReceived(String packet);
 	void invalidPacketReceived(String packet);
@@ -144,7 +149,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
                 received.append(new String(new byte[] {singleData}));
                 String str;
             	String temp = received.toString();
-            	if (temp.contains("*") && temp.contains("&")) {
+            	if (temp.contains("*") && temp.contains("&")) {  //* is start character,  & is finish character
             		if (temp.indexOf("*") < temp.indexOf("&")) {
             			str = temp.substring(temp.indexOf("*")+1, temp.indexOf("&"));
             			temp = temp.substring(temp.indexOf("&")+1, temp.length());

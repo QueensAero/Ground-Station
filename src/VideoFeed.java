@@ -4,7 +4,11 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
+import java.sql.Timestamp;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
 
 import javax.swing.JPanel;
 
@@ -21,9 +25,15 @@ import org.opencv.imgproc.Imgproc;
 import java.lang.Math;
 
 
+/*Note:  sending '&' starts the calibration.  (maybe)
+ * 
+ * 
+ * 
+ */
 
 
 public class VideoFeed extends JPanel implements Runnable {
+	
 	private Image img;
 	private VideoCapture cap;
 	private Mat CVimg; // Matrix for storing image
@@ -45,6 +55,9 @@ public class VideoFeed extends JPanel implements Runnable {
 
 
 	private int FrameNum = 0;
+	private boolean recordingVideo = false;
+	String startDate;   
+ 
 	
 	
 	private double rollAng;  
@@ -69,9 +82,14 @@ public class VideoFeed extends JPanel implements Runnable {
 		
 		Core.putText(flightPanel, "Alt:", new Point(5,50), 0, 1, BLACK, 2);  //last 4: font type, size, colour, thickness
 		Core.putText(flightPanel, "Spd:", new Point(200,50), 0, 1, BLACK, 2);  //last 4: font type, size, colour, thickness
-
 		
-		//RJD added
+		//initialize the timestamp
+		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
+		SimpleDateFormat sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss");
+		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+		startDate = new String(sdf.format(date));	
+		
+		//Dowling did this
 		VFThread = new Thread(this, "Video Feed Thread");
 		VFThread.start();
 	}
@@ -137,20 +155,39 @@ public class VideoFeed extends JPanel implements Runnable {
 	/*function to end the video capture and display thread */
 	public void endCapture(){	endThread = true;	}
 	
+	public void setRecordStatus(){
+		
+		if(recordingVideo)  //stop recording
+		{	
+			recordingVideo = true;
+			
+			//set timestamp
+			Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
+			SimpleDateFormat sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss");
+			sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+			startDate = new String(sdf.format(date));			
+		}
+		else //stop recording video
+		{
+			recordingVideo = false;
+		}
+		
+	}
 	
 	/* Function to process the frame, extending its size to add flight details (incomplete) */
 	private void processFrame(){
 		
 		//for testing, only save a few images. Save unedited image (otherwise no way to get it back)
-		if(FrameNum < 10)
-			Highgui.imwrite("Images" + File.separator + "test" + FrameNum + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
+		if(FrameNum < 5 && !recordingVideo)
+			Highgui.imwrite("Images" + File.separator + startDate + "  " + FrameNum + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
+		
 		
 		//will need to do this for the actual frames from the camera to check the image dimensions
 		//System.out.println("Rows = " + matrix.rows() + "  Cols = " + matrix.cols());
 		//System.out.println("FP Rows = " + flightPanel.rows() + "  Cols = " + flightPanel.cols());
 		
 		updateStatus();  //get's the new values of roll/pitch/alt etc.
-		drawHorizon();	//draw the lines representing horizon
+		//drawHorizon();	//draw the lines representing horizon
 		
 		if(FrameNum % 5 == 0)  //avoid updating too fast for increased readability
 			printInfo();  //print values to image
@@ -184,6 +221,9 @@ public class VideoFeed extends JPanel implements Runnable {
 	int sign=1;
 	private void updateStatus(){
 		//These values will need to come from accessors
+		
+		
+		
 		rollAng+= sign;  //to watch it move
 		if(rollAng > 45 || rollAng <-45) sign = -sign;
 		
