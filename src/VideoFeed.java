@@ -25,6 +25,11 @@ import org.opencv.imgproc.Imgproc;
 import java.lang.Math;
 
 
+/*Note:  sending '&' starts the calibration.  (maybe)
+ * 
+ * 
+ * 
+ */
 
 
 public class VideoFeed extends JPanel implements Runnable {
@@ -182,7 +187,7 @@ public class VideoFeed extends JPanel implements Runnable {
 		//System.out.println("FP Rows = " + flightPanel.rows() + "  Cols = " + flightPanel.cols());
 		
 		updateStatus();  //get's the new values of roll/pitch/alt etc.
-		drawHorizon();	//draw the lines representing horizon
+		//drawHorizon();	//draw the lines representing horizon
 		
 		if(FrameNum % 5 == 0)  //avoid updating too fast for increased readability
 			printInfo();  //print values to image
