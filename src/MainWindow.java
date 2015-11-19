@@ -1,6 +1,8 @@
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.FlowLayout
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
 import javax.swing.JPanel;
@@ -384,36 +386,44 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		
 		JPanel panel_1 = new JPanel();
-		//panel_1.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		//panel_1.setLayout(new GridLayout(2, 0)); Commented out so full video feed
+		panel_1.setLayout(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
 				
 		JPanel videoFeedArea = new JPanel();
-		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
+		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed");
+		videoFeedArea.setMinimumSize(new Dimension(640, 600));
+		videoFeedArea.setPreferredSize(new Dimension(640, 600));
+		videoFeedArea.setMaximumSize(new Dimension(640, 600));
 		feed = new VideoFeed();
 		videoFeedArea.add(feed);
-		//testing various sizes
-		//videoFeedArea.setSize(new Dimension(640, 480));
 		
-		videoFeedArea.setSize(new Dimension(640, 700));
+		c.fill = GridBagConstraints.NONE;
+		c.gridx = 0;
+		c.gridy = 1;
+		panel_1.add(videoFeedArea, c);
 
-		
-		
+		JPanel logPanel = new JPanel();
+		logPanel.setLayout(new BorderLayout());
 		dataLoggerTextArea = new JTextArea();
 		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
 		dataLoggerTextArea.setMinimumSize(new Dimension(640, 400));	//added
 		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
 		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		panel_1.add(dataLoggerScroller, BorderLayout.CENTER);
+		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
+		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
 		
-		//panel_1.add(videoFeedArea);
-		panel_1.add(videoFeedArea, BorderLayout.SOUTH);  //used to increase size of video area temporarily
+		c.fill = GridBagConstraints.BOTH;
+		c.gridx = 0;
+		c.gridy = 0;
+		c.weightx = 1.0;
+		c.weighty = 1.0;
+		
+		panel_1.add(logPanel, c);
 		dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
 
-		
 		this.add(panel);
 		this.add(panel_1);
-
 	}
 	
 	public void invalidPacketReceived(String packet) {
