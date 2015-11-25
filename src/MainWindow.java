@@ -1,6 +1,8 @@
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
 import javax.swing.JPanel;
@@ -33,7 +35,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class MainWindow extends JPanel implements PacketListener {
 	
-	private VideoFeed feed;
+	private VideoFeed videoFeed;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData;
@@ -48,11 +50,9 @@ public class MainWindow extends JPanel implements PacketListener {
 	JDialog calibrator;
 	long connectTime;
 	boolean btnsEnabled = false;
+	boolean packageDropped = false; //status of the drop
 	
-	public void updateVideoFeed() {
-		feed.update();
-		
-	}
+
 	public MainWindow (SerialCommunicator sc) {
 		serialComm = sc;
 		initializeComponents();
@@ -238,9 +238,14 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnStartRecording.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				
-				//add response here
-				System.out.println("NOT SET UP YET-> NEED ACCESS TO VIDEOFEED CLASS");
-					
+				videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
+
+				boolean currentStatus = videoFeed.getRecordStatus();
+				
+				if(currentStatus)  //if true, is recording
+					System.out.println("Recording Set to ON");
+				else
+					System.out.println("Recording Set to OFF");
 			}
 		});
 	}
@@ -250,6 +255,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		System.out.println(time + "s: Package dropped at: "+lblAlt.getText());
 		lblAltAtDrop.setText(lblAlt.getText());
+		
+		packageDropped = true; //flag variable
 	}
 	
 	private void initializeComponents() {
@@ -384,36 +391,44 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		
 		JPanel panel_1 = new JPanel();
-		//panel_1.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		//panel_1.setLayout(new GridLayout(2, 0)); Commented out so full video feed
+		panel_1.setLayout(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
 				
 		JPanel videoFeedArea = new JPanel();
 		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
-		feed = new VideoFeed();
-		videoFeedArea.add(feed);
-		//testing various sizes
-		//videoFeedArea.setSize(new Dimension(640, 480));
+		videoFeedArea.setMinimumSize(new Dimension(640, 600));
+		videoFeedArea.setPreferredSize(new Dimension(640, 600));
+		videoFeedArea.setMaximumSize(new Dimension(640, 600));
+		videoFeed = new VideoFeed();
+		videoFeedArea.add(videoFeed);
 		
-		videoFeedArea.setSize(new Dimension(640, 700));
+		c.fill = GridBagConstraints.NONE;
+		c.gridx = 0;
+		c.gridy = 1;
+		panel_1.add(videoFeedArea, c);
 
-		
-		
+		JPanel logPanel = new JPanel();
+		logPanel.setLayout(new BorderLayout());
 		dataLoggerTextArea = new JTextArea();
 		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
 		dataLoggerTextArea.setMinimumSize(new Dimension(640, 400));	//added
 		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
 		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		panel_1.add(dataLoggerScroller, BorderLayout.CENTER);
+		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
+		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
 		
-		//panel_1.add(videoFeedArea);
-		panel_1.add(videoFeedArea, BorderLayout.SOUTH);  //used to increase size of video area temporarily
+		c.fill = GridBagConstraints.BOTH;
+		c.gridx = 0;
+		c.gridy = 0;
+		c.weightx = 1.0;
+		c.weighty = 1.0;
+		
+		panel_1.add(logPanel, c);
 		dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
 
-		
 		this.add(panel);
 		this.add(panel_1);
-
 	}
 	
 	public void invalidPacketReceived(String packet) {
@@ -434,7 +449,6 @@ public class MainWindow extends JPanel implements PacketListener {
 	}
 	
 	
-	/* To have access to this...  probably need to create a class variable dblArr, then add a couple accessors */
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		if (str.substring(0, 1).equals("p")) {
@@ -454,6 +468,10 @@ public class MainWindow extends JPanel implements PacketListener {
 			lblAlt.setText(""+dblArr[3]);
 			lblSpeed.setText(""+dblArr[4]);
 			dataLogger.println(time + "\t" + dblArr[1] + "\t" + dblArr[2] + "\t" + dblArr[3] + "\t" + dblArr[4]);
+			
+			//Update data in VideoFeed Class
+			videoFeed.updateValues(dblArr[1], dblArr[2], dblArr[3], dblArr[4], packageDropped);
+			
 		}
 		else if (str.substring(0, 1).equals("s")) {
 			planeMessageConsole.println(time + "s: Start");
