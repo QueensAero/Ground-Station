@@ -34,51 +34,68 @@ import java.lang.Math;
 
 public class VideoFeed extends JPanel implements Runnable {
 	
-	private Image img;
-	private VideoCapture cap;
-	private Mat CVimg; // Matrix for storing image
+	//image size variables
+	private final static int rows = 480;  //rows in frame from camera
+	private static final int cols = 640;	//columns in frame from camera
+	private final int fpR = 100, fpC = cols;	//rows and columns in flight display panel	
 	
-	//colour 'constants'
-	Scalar BLUE = new Scalar(255,0,0);
-	Scalar RED = new Scalar (0,0,255);
-	Scalar GREEN = new Scalar(0,255,0);
-	Scalar WHITE = new Scalar (255,255,255);
-	Scalar BLACK = new Scalar (0,0,0);
-	Scalar GRAY = new Scalar (115,115,115);
-
-	
-	private final static int rows = 480;
-	private static final int cols = 640;
-	private final int fpR = 100, fpC = 640;
-	//http://ninghang.blogspot.ca/2012/11/list-of-mat-type-in-opencv.html lists the types
-	private Mat flightPanel = new Mat(fpR, fpC, 16, GRAY);  //24 = CV_8UC4, 16 = CV_8UC3 ->  is the type used in the webcam feed - might be different for stream
-
-
-	private int FrameNum = 0;
-	private boolean recordingVideo = false;
-	String startDate;   
- 
-	
-	
-	private double rollAng;  
-	private double airSpd; 
-	private double altitude; 
-	private DecimalFormat df = new DecimalFormat("#000.00");
+	//Flight panel areas (defined by rectanges)
 	Rect altDrawArea = new Rect(new Point(60,0), new Point(175,50));
 	Rect airSpdDrawArea = new Rect(new Point(275,0), new Point(500,50));
-
 	
-	//thread details
+	//Timing/timestamping variables
+	private int FrameNum = 0; 
+	private double time;
+ 	String startDate;   
+	private DecimalFormat df = new DecimalFormat("#000.00");
+		
+	//thread variables
 	Thread VFThread;
 	boolean endThread = false;
 
+	//Buffered Image container
+	private Image img;  
+
+	//state variables (containing information about current state of plane)
+	private double rollAng, pitchAng, airSpd, altitude; 
+	boolean isDropped = false;  //whether the payload has been dropped
+	private boolean recordingVideo = false;
+	int currentRecordingFN = 0;
+	double loggedData[][];  //contain all 
 	
+	
+	
+	
+	
+		
+	
+	
+	/******************openCV DEPENDANCE STARTS **********************************/
+	//colour 'constants'
+	private Scalar BLUE = new Scalar(255,0,0);
+	private Scalar RED = new Scalar (0,0,255);
+	private Scalar GREEN = new Scalar(0,255,0);
+	private Scalar WHITE = new Scalar (255,255,255);
+	private Scalar BLACK = new Scalar (0,0,0);
+	private Scalar GRAY = new Scalar (115,115,115);
+	
+	//Video capture object (handles stream)
+	private VideoCapture cap;
+	
+	//Matricies (for holding images)
+	private Mat combinedImgCV = new Mat(rows + fpR, cols, 16, GRAY);  //full image to be rendered
+	private Mat flightPanel = combinedImgCV.submat(new Rect(new Point(0, rows), new Point(cols, rows+fpR)));  
+	private Mat CVimg = combinedImgCV.submat(new Rect(new Point(0, 0), new Point(cols, rows)));; // Matrix for storing from camera
+	
+	//Note: image formats -> 24 = CV_8UC4, 16 = CV_8UC3 ->  is the type used in the webcam feed - might be different for stream
+	//http://ninghang.blogspot.ca/2012/11/list-of-mat-type-in-opencv.html lists the types
+
 	public VideoFeed() {
 		// Register the default camera
-		cap = new VideoCapture(0);
+		cap = new VideoCapture(0);   //0 = webcam, 1 = Analog2USB device
+		
 		// Check if video capturing is enabled]
 		if (!cap.isOpened()) { System.out.println("Could not open video feed.");}
-		CVimg = new Mat();
 		
 		Core.putText(flightPanel, "Alt:", new Point(5,50), 0, 1, BLACK, 2);  //last 4: font type, size, colour, thickness
 		Core.putText(flightPanel, "Spd:", new Point(200,50), 0, 1, BLACK, 2);  //last 4: font type, size, colour, thickness
@@ -89,31 +106,27 @@ public class VideoFeed extends JPanel implements Runnable {
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 		startDate = new String(sdf.format(date));	
 		
-		//Dowling did this
+		//Thread declarations
 		VFThread = new Thread(this, "Video Feed Thread");
 		VFThread.start();
+		
+		//initialize time
+		time = System.currentTimeMillis();
 	}
 	
-	/* Thread Run Function -> currently just calls the update function */
-	public void run()
-	{
-    	while(!endThread){
-    		update();
-    	}	 
-	     System.out.println("Video Capture Thread Ended" );
-	}
+
 	
 	/* Update Function -> grabs frame, converts to BufferedImage, and calls repaint  */
 	public void update() {
-		cap.read(CVimg);  //read a new frame
+		cap.read(CVimg);  //read a new frame -> this also updates the matrix combinedImgCV since CVimg is a subset of that
 		
 		//if the frame is not NULL, then prepare it for display
 		if (CVimg != null && !CVimg.empty()) {  
 			
 			FrameNum++;
-			processFrame();  
+			processFrame();  //updates both the
 			
-			img = toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage
+			img = toBufferedImage(combinedImgCV);  //convert from CV Mat to BufferedImage
 			
 			//set the size of the painting space
 			Dimension size = new Dimension(img.getWidth(null), img.getHeight(null));
@@ -124,80 +137,43 @@ public class VideoFeed extends JPanel implements Runnable {
 			
 			//repaint the JFrame (paintComponent will be called)
 			this.repaint();
+			
+			//framerate code (prints frame rate every 500 frames)
+			if(FrameNum % 500 == 0 && FrameNum != 0)
+			{
+				System.out.println("FR = " + 500*1000/(System.currentTimeMillis() - time));  time = System.currentTimeMillis();
+			}
 		}	
 	}
 
-	/*This overrides the JFrame (??) function to paint the video frame (stored in class object "img" in the drawing frame */ 
-    @Override
-	public void paintComponent(Graphics g) {
-		g.drawImage(img, 0, 0, null);
-	}
-        
-    /*convert from OpenCV Image storage container (Mat object) to a Java image container that can be painted -> type BufferedImage  */  
-	public static Image toBufferedImage(Mat m){
-        // Code from http://stackoverflow.com/questions/15670933/opencv-java-load-image-to-gui
-
-        // Check if image is grayscale or color
-      int type = BufferedImage.TYPE_BYTE_GRAY;
-      if ( m.channels() > 1 ) {
-          type = BufferedImage.TYPE_3BYTE_BGR;
-      }
-        // Transfer bytes from Mat to BufferedImage
-      int bufferSize = m.channels()*m.cols()*m.rows();
-      byte [] b = new byte[bufferSize];
-      m.get(0,0,b); // get all the pixels
-      BufferedImage image = new BufferedImage(m.cols(), m.rows(), type);
-      final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-      System.arraycopy(b, 0, targetPixels, 0, b.length);
-      return image;
-  }
-	
-	/*function to end the video capture and display thread */
-	public void endCapture(){	endThread = true;	}
-	
-	public void setRecordStatus(){
-		
-		if(recordingVideo)  //stop recording
-		{	
-			recordingVideo = true;
-			
-			//set timestamp
-			Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-			SimpleDateFormat sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss");
-			sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-			startDate = new String(sdf.format(date));			
-		}
-		else //stop recording video
-		{
-			recordingVideo = false;
-		}
-		
-	}
+   
+   
 	
 	/* Function to process the frame, extending its size to add flight details (incomplete) */
 	private void processFrame(){
 		
 		//for testing, only save a few images. Save unedited image (otherwise no way to get it back)
-		if(FrameNum < 5 && !recordingVideo)
-			Highgui.imwrite("Images" + File.separator + startDate + "  " + FrameNum + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
-		
-		
+		if(recordingVideo)
+		{	Highgui.imwrite("Images" + File.separator + startDate + "_" + currentRecordingFN++ + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
+			logData();
+		}
+			
 		//will need to do this for the actual frames from the camera to check the image dimensions
 		//System.out.println("Rows = " + matrix.rows() + "  Cols = " + matrix.cols());
-		//System.out.println("FP Rows = " + flightPanel.rows() + "  Cols = " + flightPanel.cols());
 		
-		updateStatus();  //get's the new values of roll/pitch/alt etc.
+		//TEMPORARY -> will actually be upated by MainWindow class calling updateValues(...)
+		updateStatus();  //just for testing
+		
+		
 		//drawHorizon();	//draw the lines representing horizon
 		
 		if(FrameNum % 5 == 0)  //avoid updating too fast for increased readability
-			printInfo();  //print values to image
-
-		//add the flightPanel to the matrix
-		CVimg.push_back(flightPanel);
+			printInfoOnScreen();  //print values to image
 				
-	}
+	}	
 	
 	
+
 	//some constants for the drawHorizon Function
 	Point origin = new Point(cols/2, rows/2);
 	private final static int r = (cols-100)/2;  //radius of line
@@ -218,22 +194,29 @@ public class VideoFeed extends JPanel implements Runnable {
 		
 	}
 	
-	int sign=1;
-	private void updateStatus(){
-		//These values will need to come from accessors
+	
+	 /*convert from OpenCV Image storage container (Mat object) to a Java image container that can be painted -> type BufferedImage  */  
+	public static Image toBufferedImage(Mat m){
+	        // Code from http://stackoverflow.com/questions/15670933/opencv-java-load-image-to-gui
 		
-		
-		
-		rollAng+= sign;  //to watch it move
-		if(rollAng > 45 || rollAng <-45) sign = -sign;
-		
-		airSpd = 0.25*(FrameNum%140);
-		altitude = 0.5*(FrameNum%311);
-		//possible GPS, pitch, etc.
-		
+	        // Check if image is grayscale or color
+	    int type = BufferedImage.TYPE_BYTE_GRAY;
+	    if ( m.channels() > 1 ) {
+	        type = BufferedImage.TYPE_3BYTE_BGR;
+	    }
+	    
+	    // Transfer bytes from Mat to BufferedImage
+	    int bufferSize = m.channels()*m.cols()*m.rows();
+	    byte [] b = new byte[bufferSize];
+	    m.get(0,0,b); // get all the pixels
+	    BufferedImage image = new BufferedImage(m.cols(), m.rows(), type);
+	    final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+	    System.arraycopy(b, 0, targetPixels, 0, b.length);
+	    return image;
 	}
 	
-	private void printInfo(){
+	
+	private void printInfoOnScreen(){
 		
 		//refill old text area 
 		Core.rectangle(flightPanel, altDrawArea.tl(), altDrawArea.br(), GRAY, -1);  //-1 indicates it's filled in
@@ -244,5 +227,96 @@ public class VideoFeed extends JPanel implements Runnable {
 		Core.putText(flightPanel, df.format(airSpd), new Point(airSpdDrawArea.x,airSpdDrawArea.y+airSpdDrawArea.height-1), 0, 1, BLACK, 2);  
 		
 	}
+	
+	
+	/******************openCV DEPENDANCE ENDS **********************************/
+
+	/* Thread Run Function -> currently just calls the update function */
+	public void run()
+	{
+    	while(!endThread){
+    		update();  //continuously call update function
+    	}	 
+	     System.out.println("Video Capture Thread Ended" );
+	}
+	
+	/* DUMMY UPDATE FUNCTION 
+	  
+	  public void update() {
+			
+	}
+	*/
+	
+	/*This overrides the JFrame (??) function to paint the video frame (stored in class object "img" in the drawing frame */ 
+    @Override
+	public void paintComponent(Graphics g) {
+		g.drawImage(img, 0, 0, null);
+	}
+	
+	/*function to end the video capture and display thread */
+	public void endCapture(){	endThread = true;	}
+	
+	public void toggleRecordingStatus(){
+		
+		if(!recordingVideo)  //start recording
+		{	
+			recordingVideo = true;
+			currentRecordingFN = 1;  //reset
+			
+			//set timestamp
+			Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
+			SimpleDateFormat sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss");
+			sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+			startDate = new String(sdf.format(date));		
+			
+			//START OUTPUT STREAM -> need to set this up
+			
+		}
+		else //stop recording video
+		{
+			recordingVideo = false;
+			
+			//CLOSE OUTPUT STREAM FILE -> need to set this up
+		}
+		
+	}
+	
+	public boolean getRecordStatus() {  return recordingVideo;  }
+	
+	//if too many values, might want to send as enum/struct type? does java have that
+	public void updateValues(double roll, double pitch, double alt, double airspeed, boolean dropped)  //add more as necessary (ie. GPS).
+	{
+		rollAng = roll;
+		airSpd = airspeed;
+		altitude = alt;
+		pitchAng = pitch;
+		isDropped = dropped;
+				
+	}
+	
+	
+	int sign=1;
+	private void updateStatus(){
+		//These values will need to come from accessors
+				
+		rollAng+= sign;  //to watch it move
+		if(rollAng > 45 || rollAng <-45) sign = -sign;
+		
+		airSpd = 0.25*(FrameNum%140);
+		altitude = 0.5*(FrameNum%311);
+		//possible GPS, pitch, etc.
+		
+	}
+	
+	private void logData() {
+	
+			
+			
+			
+	}
+	
+
 
 }
+
+
