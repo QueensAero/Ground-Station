@@ -6,6 +6,7 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="C:/Program Files/Java/jre7/lib/ext/RXTXcomm.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/OpenCV"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/jre1.8.0_60/lib/ext/RXTXcomm.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

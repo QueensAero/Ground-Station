@@ -152,11 +152,17 @@ public class VideoFeed extends JPanel implements Runnable {
 	private void processFrame(){
 		
 		//for testing, only save a few images. Save unedited image (otherwise no way to get it back)
-		if(recordingVideo)
+		if(recordingVideo  && currentRecordingFN < 200)
 		{	Highgui.imwrite("Images" + File.separator + startDate + "_" + currentRecordingFN++ + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
 			logData();
 		}
+		else if(currentRecordingFN == 200)
+		{	currentRecordingFN++;  //increase so it doesn't get into here again
+			toggleRecordingStatus();			
+		}
 			
+
+		
 		//will need to do this for the actual frames from the camera to check the image dimensions
 		//System.out.println("Rows = " + matrix.rows() + "  Cols = " + matrix.cols());
 		
@@ -269,11 +275,14 @@ public class VideoFeed extends JPanel implements Runnable {
 			startDate = new String(sdf.format(date));		
 			
 			//START OUTPUT STREAM -> need to set this up
-			
+			System.out.println("Recording Set to ON");
+
 		}
 		else //stop recording video
 		{
 			recordingVideo = false;
+			System.out.println("Recording Set to OFF");
+
 			
 			//CLOSE OUTPUT STREAM FILE -> need to set this up
 		}

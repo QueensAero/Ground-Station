@@ -74,6 +74,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		commPortSelector.removeAllItems();
 		ArrayList<String> temp = serialComm.getPortList();
 		System.out.println("Available serial ports:");
+
 		for (int i = 0; i < temp.size(); i++) {
 			commPortSelector.addItem(temp.get(i));
 			System.out.print(temp.get(i) + ",");
@@ -239,13 +240,6 @@ public class MainWindow extends JPanel implements PacketListener {
 			public void actionPerformed(ActionEvent e) {
 				
 				videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
-
-				boolean currentStatus = videoFeed.getRecordStatus();
-				
-				if(currentStatus)  //if true, is recording
-					System.out.println("Recording Set to ON");
-				else
-					System.out.println("Recording Set to OFF");
 			}
 		});
 	}
