@@ -56,7 +56,22 @@ public class AeroGUI {
 		SerialCommunicator sc = new SerialCommunicator();
 		main = new MainWindow(sc);
 		frame.getContentPane().add(main, BorderLayout.CENTER);
+		
+		frame.addWindowListener(new java.awt.event.WindowAdapter() {
+		    @Override
+		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+		    	
+		    	main.videoFeed.endCapture();
+		        System.exit(0);
+
+		        
+		    }
+		});
 	}
+	
+	
+	
 
 }
+
 

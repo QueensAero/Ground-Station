@@ -51,7 +51,7 @@ public class VideoFeed extends JPanel implements Runnable {
 		
 	//thread variables
 	Thread VFThread;
-	boolean endThread = false;
+	private volatile boolean endThread = false;
 
 	//Buffered Image container
 	private Image img;  
@@ -152,16 +152,18 @@ public class VideoFeed extends JPanel implements Runnable {
 	private void processFrame(){
 		
 		//for testing, only save a few images. Save unedited image (otherwise no way to get it back)
-		if(recordingVideo  && currentRecordingFN < 200)
-		{	Highgui.imwrite("Images" + File.separator + startDate + "_" + currentRecordingFN++ + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
+		if(recordingVideo  && currentRecordingFN < 10)
+		{	//Highgui.imwrite("Images" + File.separator + startDate + "_" + currentRecordingFN++ + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
+			Highgui.imwrite("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
+					"Aero" + File.separator + "Images" + File.separator + startDate + "_" + currentRecordingFN++ + ".jpg", CVimg, new MatOfInt(5));  //parameter at end is quality (0 = lowest, 100 = highest)
+
 			logData();
 		}
-		else if(currentRecordingFN == 200)
+		else if(currentRecordingFN == 10)  //limit to 10 so that doesn't endlessly save images
 		{	currentRecordingFN++;  //increase so it doesn't get into here again
 			toggleRecordingStatus();			
 		}
 			
-
 		
 		//will need to do this for the actual frames from the camera to check the image dimensions
 		//System.out.println("Rows = " + matrix.rows() + "  Cols = " + matrix.cols());

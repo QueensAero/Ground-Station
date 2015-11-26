@@ -35,7 +35,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class MainWindow extends JPanel implements PacketListener {
 	
-	private VideoFeed videoFeed;
+	public VideoFeed videoFeed;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData;
@@ -59,6 +59,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		initializeButtons();
 	}
 	
+		
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
 		btnCamLeft.setEnabled(val);
@@ -98,6 +99,9 @@ public class MainWindow extends JPanel implements PacketListener {
 				servoControlTextBox.setText("");
 			}
 		});
+		
+		
+		
 		
 		btnClearData.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
