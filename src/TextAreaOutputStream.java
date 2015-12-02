@@ -1,6 +1,8 @@
 /*
 This class has been taken and slightly modified from the code written by "Lawrence Dol" found here on July 2nd, 2014:
 http://stackoverflow.com/questions/342990/create-java-console-inside-the-panel
+
+
 */
 
 import java.awt.EventQueue;

@@ -33,6 +33,10 @@ import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+/* Commented by Ryan Dowling, Dec. 2015
+ * Not positive in all comments, but best guesses (I didn't write this code)  
+ */
+
 public class MainWindow extends JPanel implements PacketListener {
 	
 	public VideoFeed videoFeed;
@@ -52,14 +56,14 @@ public class MainWindow extends JPanel implements PacketListener {
 	boolean btnsEnabled = false;
 	boolean packageDropped = false; //status of the drop
 	
-
+	//constructor
 	public MainWindow (SerialCommunicator sc) {
 		serialComm = sc;
 		initializeComponents();
 		initializeButtons();
 	}
 	
-		
+	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
 		btnCamLeft.setEnabled(val);
@@ -71,6 +75,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnsEnabled = val;
 	}
 	
+	//function called to update list of available COM ports
 	private void updateCommPortSelector() {
 		commPortSelector.removeAllItems();
 		ArrayList<String> temp = serialComm.getPortList();
@@ -83,171 +88,193 @@ public class MainWindow extends JPanel implements PacketListener {
 		System.out.println();
 	}
 	
+	//function containing/initializing all the GUI button action listeners
 	private void initializeButtons() {
+		
+		//since original state is not connected to COM, initially set all control buttons to disabled
 		setControlButtons(false);
-		//treating the byte sender like a button
-		servoControlTextBox.addKeyListener(new KeyAdapter() {
-			public void keyPressed(KeyEvent e) {
-				char val = e.getKeyChar();
-				if (validChar(val)) {
-					planeMessageConsole.println("Key sent: " + val);
-					serialComm.write(val);
-					if (val == 'P') {
-						dropPackage();
+		
+			
+		/* ACTION LISTENERS */	
+			//when type a char into box (this is treated like a button)
+			servoControlTextBox.addKeyListener(new KeyAdapter() {
+				public void keyPressed(KeyEvent e) {
+					char val = e.getKeyChar();
+					if (validChar(val)) {
+						planeMessageConsole.println("Key sent: " + val);
+						serialComm.write(val);
+						if (val == 'P') {
+							dropPackage();
+						}
 					}
+					servoControlTextBox.setText("");
 				}
-				servoControlTextBox.setText("");
-			}
-		});
-		
-		
-		
-		
-		btnClearData.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				dataLoggerTextArea.setText("");
-				dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
-				planeMessageTextArea.setText("");
-				consoleTextArea.setText("");
-			}
-		});
-		
-		btnRefresh.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				updateCommPortSelector();
-			}
-		});
-		
-		btnConnect.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				if (!serialComm.getConnected()) {
-					String commPort = commPortSelector.getSelectedItem().toString();
-					serialComm.connect(commPort);
-					if (serialComm.getConnected()) {
-						connectTime = System.currentTimeMillis();
-						serialComm.addListener(MainWindow.this);
-						btnConnect.setText("Disconnect");
-						setControlButtons(true);
-					}
+			});
+			
+			
+			
+			//when 'Clear' pressed.  Clears the console and plane messages window 
+			btnClearData.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					dataLoggerTextArea.setText("");
+					dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
+					planeMessageTextArea.setText("");
+					consoleTextArea.setText("");
 				}
-				else {
-					serialComm.disconnect();
+			});
+			
+			//when 'Refresh' pressed.  Refreshes the list of available COM ports
+			btnRefresh.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					updateCommPortSelector();
+				}
+			});
+			
+			/*when 'Connect' pressed. if(connected) Tries to connect to the selected COM port.  This also initializes the time, some flags, 
+			enables the plane control buttons, changes label to disconnect.  else - it disconnects from current COM port	 */
+			btnConnect.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
 					if (!serialComm.getConnected()) {
-						serialComm.removeListener(MainWindow.this);
-						btnConnect.setText("Connect");
-						setControlButtons(false);
-					}
-				}
-			}
-		});
-		
-		btnEnable.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				btnsEnabled = !btnsEnabled;
-				if (serialComm.getConnected()) {
-					if (btnsEnabled) {
-						btnSensorReset.setEnabled(true);
-						btnPlaneRestart.setEnabled(true);
+						String commPort = commPortSelector.getSelectedItem().toString();
+						serialComm.connect(commPort);
+						if (serialComm.getConnected()) {
+							connectTime = System.currentTimeMillis();
+							serialComm.addListener(MainWindow.this);
+							btnConnect.setText("Disconnect");
+							setControlButtons(true);
+						}
 					}
 					else {
-						btnSensorReset.setEnabled(false);
-						btnPlaneRestart.setEnabled(false);
+						serialComm.disconnect();
+						if (!serialComm.getConnected()) {
+							serialComm.removeListener(MainWindow.this);
+							btnConnect.setText("Connect");
+							setControlButtons(false);
+						}
 					}
 				}
-				else {
-					System.out.println("Cannot enable sensor/plane resets. Comm. port not connected.");
+			});
+			
+			//when 'Enable/Disable Resets' Pressed
+			btnEnable.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					btnsEnabled = !btnsEnabled;  //status or resets enabled.
+					//want to turn of resets once plane is ready to fly (otherwise could accidentally erase/reset all data during flight
+					//need resets originally since sensors take some time to 'settle' on startup
+					if (serialComm.getConnected()) {
+						if (btnsEnabled) {
+							btnSensorReset.setEnabled(true);
+							btnPlaneRestart.setEnabled(true);
+						}
+						else {
+							btnSensorReset.setEnabled(false);
+							btnPlaneRestart.setEnabled(false);
+						}
+					}
+					else {
+						System.out.println("Cannot enable sensor/plane resets. Comm. port not connected.");
+					}
 				}
-			}
-		});
-		
-		btnSave.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-                JFileChooser saveFile = new JFileChooser();
-                saveFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
-                saveFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
-                int val = saveFile.showSaveDialog(null);
-                if (val == JFileChooser.APPROVE_OPTION) {                		
-                	String filename = saveFile.getSelectedFile().toString();
-                	try {
-                	if (saveFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
-                		filename += ".txt";
-                	} catch (Exception err) {}
-                	FileWriter fstream = null;
-                	BufferedWriter writer = null;
-                	String messages = planeMessageTextArea.getText();
-                	String data = dataLoggerTextArea.getText();
-                	System.out.println("Attempting to save data as \"" + filename + "\"");
-                	try {
-                		fstream = new FileWriter(filename);
-                		writer = new BufferedWriter(fstream);
-                		writer.write("Plane Messages:\n");
-                		writer.write(messages);
-                		writer.write("Data:\n");
-						writer.write(data);
-						writer.close();
-						System.out.println("File saved succesfully.");
-                	} catch (IOException err) {
-                		System.out.println("Error saving file.");
-                		err.printStackTrace();
-                	}
-                }
-			}
-		});
-		
-		btnDrop.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				serialComm.write('P');
-				dropPackage();
-			}
-		});
-		
-
-		btnCamLeft.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				serialComm.write('a');
-				planeMessageConsole.println("Cam left sent.");
-			}
-		});
-		
-		btnCamRight.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				serialComm.write('d');
-				planeMessageConsole.println("Cam right sent.");
-			}
-		});
-		btnCamCenter.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				serialComm.write('x');
-				planeMessageConsole.println("Centre camera sent.");
-			}
-		});
-		
-		btnSensorReset.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				serialComm.write('r');
-				planeMessageConsole.println("Reset sent.");
-				dataLoggerTextArea.setText("");
-				dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
-			}
-		});
-		
-		btnPlaneRestart.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				serialComm.write('q');
-				planeMessageConsole.println("Restart sent.");
-				dataLoggerTextArea.setText("");
-				dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
-			}
-		});
-		
-		btnStartRecording.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				
-				videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
-			}
-		});
-	}
+			});
+			
+			
+			//when 'Save' pressed -> handles the saving of the received data area
+			btnSave.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+	                JFileChooser saveFile = new JFileChooser();
+	                saveFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
+	                saveFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
+	                int val = saveFile.showSaveDialog(null);
+	                if (val == JFileChooser.APPROVE_OPTION) {                		
+	                	String filename = saveFile.getSelectedFile().toString();
+	                	try {
+	                	if (saveFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
+	                		filename += ".txt";
+	                	} catch (Exception err) {}
+	                	FileWriter fstream = null;
+	                	BufferedWriter writer = null;
+	                	String messages = planeMessageTextArea.getText();
+	                	String data = dataLoggerTextArea.getText();
+	                	System.out.println("Attempting to save data as \"" + filename + "\"");
+	                	try {
+	                		fstream = new FileWriter(filename);
+	                		writer = new BufferedWriter(fstream);
+	                		writer.write("Plane Messages:\n");
+	                		writer.write(messages);
+	                		writer.write("Data:\n");
+							writer.write(data);
+							writer.close();
+							System.out.println("File saved succesfully.");
+	                	} catch (IOException err) {
+	                		System.out.println("Error saving file.");
+	                		err.printStackTrace();
+	                	}
+	                }
+				}
+			});
+			
+			//when 'Drop' pressed
+			btnDrop.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('P');  //send drop command to arduino
+					dropPackage();  //set's flags, prints current time and altitude
+				}
+			});
+			
+			//when 'Cam Left' pressed
+			btnCamLeft.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('a');
+					planeMessageConsole.println("Cam left sent.");
+				}
+			});
+			
+			//when 'Cam Right' pressed
+			btnCamRight.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('d');
+					planeMessageConsole.println("Cam right sent.");
+				}
+			});
+			
+			//when 'Cam Center' pressed
+			btnCamCenter.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('x');
+					planeMessageConsole.println("Centre camera sent.");
+				}
+			});
+			
+			//when "reset sensor' pressed
+			btnSensorReset.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('r');
+					planeMessageConsole.println("Reset sent.");
+					dataLoggerTextArea.setText("");
+					dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
+				}
+			});
+			
+			//when 'Plane Reset' pressed 
+			btnPlaneRestart.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('q');  //send the command to plane
+					planeMessageConsole.println("Restart sent."); 
+					dataLoggerTextArea.setText("");  //delete old text
+					dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");  //reprint information line
+				}
+			});
+			
+			//when Start/Stop Recording is pressed
+			btnStartRecording.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					
+					videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
+				}
+			});
+	}/* END INITIALIZE BUTTONS */
 	
+	//called when drop command sent. Updates flag, prints out time and altitude of drop
 	private void dropPackage() {
 		planeMessageConsole.println("Drop package sent.");
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
@@ -257,6 +284,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		packageDropped = true; //flag variable
 	}
 	
+	
+	//mess of a function intializing the layout of the GUI
 	private void initializeComponents() {
 		this.setLayout(new GridLayout(0, 2, 0, 0));
 		JPanel panel = new JPanel();
@@ -429,16 +458,19 @@ public class MainWindow extends JPanel implements PacketListener {
 		this.add(panel_1);
 	}
 	
+	//called from SerialCommunicator?
 	public void invalidPacketReceived(String packet) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		System.out.println(time + "s: Invalid packet recieved:" +packet);
 	}
-
+	
+	//called from SerialCommunicator?
 	public void packetReceived(String packet) {
 		//System.out.println(packet);
 		analyzePacket(packet);
 	}
 	
+	//does checking for the character entered into GUI - checks there is an associated command
 	private boolean validChar (char ch) {
 		if (ch == 'P' || ch == 'a' || ch == 'd'|| ch == 'x') {
 			return true;
@@ -446,7 +478,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		return false;
 	}
 	
-	
+	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		if (str.substring(0, 1).equals("p")) {
