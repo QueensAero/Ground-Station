@@ -49,7 +49,8 @@ public class AeroGUI {
 	 */
 	private void initialize() {
 		frame = new JFrame("Aero GUI");
-		frame.setBounds(100, 100, 1200, 600);
+		//frame.setBounds(100, 100, 1200, 600);
+		frame.setExtendedState(JFrame.MAXIMIZED_BOTH); 
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout());
 		
@@ -62,7 +63,16 @@ public class AeroGUI {
 		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
 		    	
 		    	main.videoFeed.endCapture();
-		        System.exit(0);
+		    	
+		    	System.out.print("test");
+		    	
+		    	try {
+		    	    Thread.sleep(2000);                 //1000 milliseconds is one second.
+		    	} catch(InterruptedException ex) {
+		    	    Thread.currentThread().interrupt();
+		    	}
+		    	
+		    	System.exit(0);
 
 		        
 		    }

@@ -45,7 +45,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	
 	//Timing/timestamping variables
 	private int FrameNum = 0; 
-	private double time;
+	private double time,  videoRecStartTime;
  	String startDate;   
 	private DecimalFormat df = new DecimalFormat("#000.00");
 		
@@ -276,8 +276,11 @@ public class VideoFeed extends JPanel implements Runnable {
 			sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 			startDate = new String(sdf.format(date));		
 			
-			//START OUTPUT STREAM -> need to set this up
+			videoRecStartTime = System.currentTimeMillis();
+
 			System.out.println("Recording Set to ON");
+			
+			//START OUTPUT STREAM -> need to set this up
 
 		}
 		else //stop recording video
@@ -320,8 +323,13 @@ public class VideoFeed extends JPanel implements Runnable {
 	
 	private void logData() {
 	
-			
-			
+		//set this up, separate with space or tab
+		//Write FrameNumber
+		//Write Timestamp (videoRecStartTime - System.getTimeMillis();
+		//Write Altitude
+		//Write AirSpd
+		//write Pitch
+		//write roll			
 			
 	}
 	
