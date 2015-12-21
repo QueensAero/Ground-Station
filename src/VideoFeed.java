@@ -45,7 +45,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	
 	//Timing/timestamping variables
 	private int FrameNum = 0; 
-	private double time,  videoRecStartTime;
+	private long time,  videoRecStartTime;
  	String startDate;   
 	private DecimalFormat df = new DecimalFormat("#000.00");
 		
@@ -280,15 +280,37 @@ public class VideoFeed extends JPanel implements Runnable {
 
 			System.out.println("Recording Set to ON");
 			
-			//START OUTPUT STREAM -> need to set this up
-
+			//START OUTPUT STREAM
+			Path logPath = Paths.get("Images" + File.separator + startDate + "_log.txt");
+			
+			// Create "Images" folder if it does not exist:
+			try {
+				Files.createDirectories(logPath.getParent());
+			} catch (IOException e2) {
+				System.err.println("Could not create directory: " + logPath.getParent());
+			}
+			
+			// Create log file:
+		        try {
+		            Files.createFile(logPath);
+		        } catch (FileAlreadyExistsException e) {
+		            System.err.println("File already exists: " + logPath);
+		        } catch (IOException e) {
+		        	System.err.println("Could not create file: " + logPath);
+			}
+	        
+		        String s = "Frame,time,roll,pitch,airSpeed,altitude";
+		        try {
+		            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
+		        } catch (IOException e) {
+		        // It's really hard to recover from an IOException. Should probably just notify user and stop recording.
+		            System.err.println("Could not write to file: " + logPath);
+		        }
 		}
 		else //stop recording video
 		{
 			recordingVideo = false;
 			System.out.println("Recording Set to OFF");
-
-			
 			//CLOSE OUTPUT STREAM FILE -> need to set this up
 		}
 		
@@ -329,7 +351,19 @@ public class VideoFeed extends JPanel implements Runnable {
 		//Write Altitude
 		//Write AirSpd
 		//write Pitch
-		//write roll			
+		//write roll
+		String t = Long.toString(System.currentTimeMillis() - videoRecStartTime);
+		String s = Integer.toString(FrameNum) + "," + t + "," + rollAng + "," + pitchAng + "," + airSpd + "," + altitude + "\n";
+		
+		try {
+			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)
+			// If this is too slow, then we will have to either set up a BufferedWriter and just close it when we are
+			// done recording, OR we could simply save the data in an array and then print it all when we're done recording.
+			Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
+		} catch (IOException e) {
+			// It's really hard to recover from an IOException. Should probably just notify user and stop recording.
+			System.err.println("Could not write to file: " + logPath);
+		}		
 			
 	}
 	
