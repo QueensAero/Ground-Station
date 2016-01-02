@@ -45,8 +45,8 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnEnable, btnSave, btnClearData;
 	private JButton btnDrop, btnCamLeft, btnCamRight, btnCamCenter, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording;  //button to start/stop recording
-	private PrintStream console; //to display all console messages
-	private PrintStream planeMessageConsole, dataLogger;
+	public PrintStream console; //to display all console messages
+	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
 	private JTextField servoControlTextBox;
 	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblAltAtDrop; //labels to display the values
@@ -61,7 +61,24 @@ public class MainWindow extends JPanel implements PacketListener {
 		serialComm = sc;
 		initializeComponents();
 		initializeButtons();
+		
 	}
+	
+	/*
+	public void onShutDown(){ 
+	    	
+		//need to close the text output streams for program to terminate properly
+		closeOutputStream();
+    	
+    
+	}
+	
+	private void closeOutputStream(){
+		this.console.close();
+    	this.dataLogger.close();
+    	this.planeMessageConsole.close();  
+		
+	}*/
 	
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
@@ -423,9 +440,9 @@ public class MainWindow extends JPanel implements PacketListener {
 				
 		JPanel videoFeedArea = new JPanel();
 		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
-		videoFeedArea.setMinimumSize(new Dimension(640, 600));
-		videoFeedArea.setPreferredSize(new Dimension(640, 600));
-		videoFeedArea.setMaximumSize(new Dimension(640, 600));
+		videoFeedArea.setMinimumSize(new Dimension(640, 700));
+		videoFeedArea.setPreferredSize(new Dimension(640, 700));
+		videoFeedArea.setMaximumSize(new Dimension(640, 700));
 		videoFeed = new VideoFeed();
 		videoFeedArea.add(videoFeed);
 		
@@ -438,7 +455,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		logPanel.setLayout(new BorderLayout());
 		dataLoggerTextArea = new JTextArea();
 		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		dataLoggerTextArea.setMinimumSize(new Dimension(640, 400));	//added
+		dataLoggerTextArea.setMinimumSize(new Dimension(640, 300));	//added
 		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
 		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);

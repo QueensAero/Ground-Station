@@ -1,20 +1,15 @@
 import java.awt.EventQueue;
-
 import javax.swing.JFrame;
-
 import java.awt.BorderLayout;
-
 import javax.swing.UIManager;
 
-import org.opencv.core.Core;
 
 public class AeroGUI {
 	//member variables
 	private static MainWindow main;
 	private JFrame frame;
 	
-	//this is something weird that has to be done to properly load the OpenCV library
-	static {  System.loadLibrary( Core.NATIVE_LIBRARY_NAME );	}
+	
 
 	/** MAIN - Launches the application.	 */
 	public static void main(String[] args) {
@@ -46,8 +41,13 @@ public class AeroGUI {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout());
 		
+		//declare Serial Communicator class
 		SerialCommunicator sc = new SerialCommunicator();
+		
+		//declare mainwindow class, passing the SC instance to it
 		main = new MainWindow(sc);
+		
+		
 		frame.getContentPane().add(main, BorderLayout.CENTER);
 		
 		
@@ -56,7 +56,11 @@ public class AeroGUI {
 		    @Override
 		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
 		    	
-		    	main.videoFeed.endCapture();  //end VideoFeed thread, currently doesn't work...		    	
+		    	main.videoFeed.endCapture();  
+		    	main.console.close();
+		    	main.planeMessageConsole.close();  
+		    	main.dataLogger.close();
+		    	
 		    	
 		    	System.exit(0);  //terminate the program		        
 		    }
