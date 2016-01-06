@@ -185,17 +185,18 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
      *  if new data is receieved BEFORE processing this event.  This is poorly setup - it should read until not available
      *  not just read a single byte: otherwise, if a two bytes are received before the 1st is processed, it will forever be
      *  behind 'real' time and the buffer will increase in length
-     *  instead should replace with something like:
-     *  
-     *  while(input.available != 0)  ... keep reading single bytes until this is 0  */    
+     */    
     public void serialEvent(SerialPortEvent evt) {
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
-            	byte singleData = (byte)input.read();
-                System.out.print("Serial Event ");
-                System.out.println(singleData + " ");
-                
-                received.append(new String(new byte[] {singleData}));
+            	char c;
+            	// Will have to test to make sure that casting to char works as expected
+            	while((c = (char)input.read()) > -1) // read() returns -1 when buffer is empty
+            	{
+            		received.append(c);
+            		System.out.print("Serial Event ");
+            		System.out.println(c + " ");
+            	}
                 String str;
             	String temp = received.toString();
             	if (temp.contains("*") && temp.contains("&")) {  //* is start character,  & is finish character
