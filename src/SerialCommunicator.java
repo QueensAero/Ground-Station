@@ -191,11 +191,30 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             try {
             	char c;
             	// Will have to test to make sure that casting to char works as expected
-            	while((c = (char)input.read()) > -1) // read() returns -1 when buffer is empty
+            		
+            	//input.
+            	
+            	System.out.print(input.read() + " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.print(input.read()+ " ");
+            	System.out.println(input.read()+ " ");
+
+
+            	
+
+            	boolean tempor = true;
+            	while((c = (char)input.read()) > -1 && tempor) // read() returns -1 when buffer is empty
             	{
+            		tempor = false;
             		received.append(c);
-            		System.out.print("Serial Event ");
-            		System.out.println(c + " ");
+            		//System.out.print("Serial Event ");
+            		//System.out.println(c + " ");
             	}
                 String str;
             	String temp = received.toString();

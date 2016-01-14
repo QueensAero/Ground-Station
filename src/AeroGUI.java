@@ -1,6 +1,11 @@
+import java.awt.Dimension;
 import java.awt.EventQueue;
+import java.awt.Frame;
+
 import javax.swing.JFrame;
+
 import java.awt.BorderLayout;
+
 import javax.swing.UIManager;
 
 
@@ -47,16 +52,19 @@ public class AeroGUI {
 		//declare mainwindow class, passing the SC instance to it
 		main = new MainWindow(sc);
 		
-		
 		frame.getContentPane().add(main, BorderLayout.CENTER);
 		
+		
+		
+
 		
 		//this overrides the closing event, in an attempt to properly terminate the application and end VideoFeed thread
 		frame.addWindowListener(new java.awt.event.WindowAdapter() {
 		    @Override
 		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
 		    	
-		    	main.videoFeed.endCapture();  
+		    	
+		    	main.videoFeed.endCapture();  //Comment this out to remove OpenCV dependance
 		    	main.console.close();
 		    	main.planeMessageConsole.close();  
 		    	main.dataLogger.close();

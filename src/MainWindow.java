@@ -437,12 +437,21 @@ public class MainWindow extends JPanel implements PacketListener {
 		JPanel panel_1 = new JPanel();
 		panel_1.setLayout(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
+		
+		
+		int videoW = 720, videoH = 576, fpH = 200;  //VideoGrabber
+		//int videoW = 640, videoH = 480, fpH = 200;  //webcam
+
 				
 		JPanel videoFeedArea = new JPanel();
+
+		videoFeedArea.setLayout(new FlowLayout());
+
+		
 		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
-		videoFeedArea.setMinimumSize(new Dimension(640, 700));
-		videoFeedArea.setPreferredSize(new Dimension(640, 700));
-		videoFeedArea.setMaximumSize(new Dimension(640, 700));
+		videoFeedArea.setMinimumSize(new Dimension(videoW, videoH + fpH));
+		videoFeedArea.setPreferredSize(new Dimension(videoW, videoH + fpH));
+		videoFeedArea.setMaximumSize(new Dimension(videoW, videoH + fpH));
 		videoFeed = new VideoFeed();
 		videoFeedArea.add(videoFeed);
 		

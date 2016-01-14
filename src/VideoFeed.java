@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.FontMetrics;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -55,19 +56,19 @@ import java.nio.file.StandardOpenOption;
  * Dependencies:  InitCV -> from constructor, getImage -> in "update()", endCapture -> in AeroGUI "windowClosing()", code block (can block comment this out) 
  * 
  * 
+ * Webcam is often used for testing. To switch between webcam mode and videograbber mode, there are several steps:
+ * 1) in the OpenCV dependance section ->  cap = new VideoCapture(1);   //0 = webcam, 1 = Analog2USB device
+
+ * 
  */
 
 
 public class VideoFeed extends JPanel implements Runnable {
 	
-	//image size variables
-	private final static int rows = 480;  //rows in frame from camera
-	private final static int cols = 640;	//columns in frame from camera
-	private final static int fpR = 200, fpC = cols;	//rows and columns in flight display panel	
-	
-	//Flight padfronel areas (defined by rectangles)
-	Rect altDrawArea = new Rect(new Point(60,0), new Point(175,50));
-	Rect airSpdDrawArea = new Rect(new Point(275,0), new Point(500,50));
+	//image size variables (1st = webcam) (2nd = analog 2 usb)
+	//private final static int rows = 480, cols = 640, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private final static int rows = 576, cols = 720, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
+
 	
 	//Timing/timestamping/file storing variables
 	private int FrameNum = 0; 
@@ -82,7 +83,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	private volatile boolean endThread = false;
 
 	//Buffered Image container
-	private Image img;  
+	private Image img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
 
 	//state variables (containing information about current state of plane)
 	private double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
@@ -126,6 +127,17 @@ public class VideoFeed extends JPanel implements Runnable {
 			System.out.print("gauge init error");
 		}		
 		
+		
+		//set the size of the painting space
+		Dimension size = new Dimension(cols, rows + fpR);
+		this.setPreferredSize(size);
+		this.setMinimumSize(size);
+		this.setMaximumSize(size);	
+		this.setSize(size);
+		//this.revalidate();
+				
+				
+		
 		//Thread declarations
 		VFThread = new Thread(this, "Video Feed Thread");
 		time = System.currentTimeMillis();
@@ -147,7 +159,7 @@ public class VideoFeed extends JPanel implements Runnable {
 
 	private void initOpenCV(){
 		
-		cap = new VideoCapture(0);   //0 = webcam, 1 = Analog2USB device
+		cap = new VideoCapture(1);   //0 = webcam, 1 = Analog2USB device
 		
 		// Check if video capturing is enabled]
 		if (!cap.isOpened()) { System.out.println("Could not open video feed.");}
@@ -161,11 +173,15 @@ public class VideoFeed extends JPanel implements Runnable {
 		//will need to do this for the actual frames from the camera to check the image dimensions
 		//System.out.println("Rows = " + CVimg.rows() + "  Cols = " + CVimg.cols());
 				
-		if (CVimg != null && !CVimg.empty()) {  
+		if (CVimg != null && !CVimg.empty() && CVimg.rows() != 0 && CVimg.cols() != 0) {  
 				streamActive = true;  return toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage
 		}
 		else
-			return null;
+		{	System.out.println("No image grabbed, making a blank image");
+			CVimg = new Mat(rows, cols, 16, new Scalar(110,110,110));
+			streamActive = true;
+			return toBufferedImage(CVimg);
+		}
 	}
 	
 	//function to end the video capture and display thread 
@@ -195,6 +211,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	/* Thread Run Function -> currently just calls the update function */
 	public void run()
 	{
+		
     	while(!endThread){
     		update();  //continuously call update function
     	}	 
@@ -204,6 +221,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	
 	int maxFrames = 100;
 
+	boolean firstRUn = true;
 	/* Update Function -> grabs frame, converts to BufferedImage, and calls repaint  */
 	private void update() {
 		  
@@ -211,6 +229,16 @@ public class VideoFeed extends JPanel implements Runnable {
 		
 		//OpenCV Dependance
 		img = getImage();  //can comment this out, will still display gauges
+		
+		if(firstRUn)
+		{
+			System.out.println("got here");
+			firstRUn = false;
+			System.out.println("width = " + img.getWidth(null) + "height = " + img.getHeight(null));
+
+			
+		}
+		
 		
 		if(img == null || !streamActive)  //failed to get video, still want to display everything else
 		{
@@ -225,11 +253,8 @@ public class VideoFeed extends JPanel implements Runnable {
 		updateStatus();  //just for testing
 		speedGauge.updateValue(airSpd);
 		altGauge.updateValue(altitude);
-				
-		//set the size of the painting space
-		Dimension size = new Dimension(img.getWidth(null), img.getHeight(null));
-		setPreferredSize(size);  	//setMinimumSize(size);	//setMaximumSize(size);
-		setSize(size);
+						
+		
 		
 		//repaint the JFrame (paintComponent will be called)
 		this.repaint();
@@ -247,32 +272,39 @@ public class VideoFeed extends JPanel implements Runnable {
 	public void paintComponent(Graphics g) {
 
     	//create a graphics object from the img, which will be edited -> this allows the edited image to be saved
-    	Graphics temp = img.getGraphics();
-
-    	if(temp == null) System.out.print("null");
-		
-		speedGauge.draw((Graphics2D)temp);
-		altGauge.draw((Graphics2D)temp);
-		
-		temp.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
-		if(isDropped)
-		{
-			temp.setColor(Color.GREEN);
-			temp.drawString("Payload Dropped", cols - 200, rows + 30);
-			temp.drawString("Height At Drop = " + (int)altAtDrop + " ft", cols - 200, rows + 60);
-		}
-		else
-		{
-			temp.setColor(Color.RED);
-			temp.drawString("Payload Not Dropped", cols - 200, rows + 30); 			
-		}
-		
-		
-		doRecording(temp);
-				
-					  
-		//drawHorizon((Graphics2D)temp);
-		
+    	
+    	if(img != null)
+    	{
+	    	Graphics temp = img.getGraphics();
+	
+	    	if(temp == null) System.out.print("null");
+			
+	    	
+			speedGauge.draw((Graphics2D)temp);
+			altGauge.draw((Graphics2D)temp);
+			
+			temp.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
+			if(isDropped)
+			{
+				temp.setColor(Color.GREEN);
+				temp.drawString("Payload Dropped", cols - 200, rows + 30);
+				temp.drawString("Height At Drop = " + (int)altAtDrop + " ft", cols - 200, rows + 60);
+			}
+			else
+			{
+				temp.setColor(Color.RED);
+				temp.drawString("Payload Not Dropped", cols - 200, rows + 30); 			
+			}
+			
+			
+			doRecording(temp);
+					
+						  
+			//drawHorizon((Graphics2D)temp);
+    	}
+    	
+    	
+    	
 		//draw the image to the screen
 		g.drawImage(img, 0, 0, null);
 		
