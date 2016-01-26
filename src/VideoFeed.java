@@ -3,22 +3,16 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontFormatException;
-import java.awt.FontMetrics;
-import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.Toolkit;
 import java.awt.geom.GeneralPath;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
@@ -33,9 +27,7 @@ import javax.swing.JPanel;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Core;
-import org.opencv.core.MatOfInt;
 import org.opencv.core.Point;
-import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.highgui.VideoCapture;
 import org.opencv.highgui.Highgui;
@@ -58,7 +50,8 @@ import java.nio.file.StandardOpenOption;
  * 
  * Webcam is often used for testing. To switch between webcam mode and videograbber mode, there are several steps:
  * 1) in the OpenCV dependance section ->  cap = new VideoCapture(1);   //0 = webcam, 1 = Analog2USB device
-
+ * 2) right below: uncomment to the other line (image size variables) 
+ * 3) Main window: int videoW = 720, videoH = 576, fpH = 200;  //VideoGrabber line 
  * 
  */
 
@@ -66,8 +59,8 @@ import java.nio.file.StandardOpenOption;
 public class VideoFeed extends JPanel implements Runnable {
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
-	//private final static int rows = 480, cols = 640, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
-	private final static int rows = 576, cols = 720, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private final static int rows = 480, cols = 640, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
+	//private final static int rows = 576, cols = 720, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
 
 	
 	//Timing/timestamping/file storing variables
@@ -95,7 +88,6 @@ public class VideoFeed extends JPanel implements Runnable {
 	//Gauge graphics
 	SpeedGauge speedGauge;
 	SpeedGauge altGauge;
-	private Font defaultFont;
 	
 	//Constructor
 	public VideoFeed() {
@@ -159,7 +151,7 @@ public class VideoFeed extends JPanel implements Runnable {
 
 	private void initOpenCV(){
 		
-		cap = new VideoCapture(1);   //0 = webcam, 1 = Analog2USB device
+		cap = new VideoCapture(0);   //0 = webcam, 1 = Analog2USB device
 		
 		// Check if video capturing is enabled]
 		if (!cap.isOpened()) { System.out.println("Could not open video feed.");}
@@ -177,7 +169,7 @@ public class VideoFeed extends JPanel implements Runnable {
 				streamActive = true;  return toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage
 		}
 		else
-		{	System.out.println("No image grabbed, making a blank image");
+		{	//System.out.println("No image grabbed, making a blank image");
 			CVimg = new Mat(rows, cols, 16, new Scalar(110,110,110));
 			streamActive = true;
 			return toBufferedImage(CVimg);
@@ -219,26 +211,14 @@ public class VideoFeed extends JPanel implements Runnable {
     	System.out.println("Video Capture Thread Ended" );
 	}
 	
-	int maxFrames = 100;
 
-	boolean firstRUn = true;
 	/* Update Function -> grabs frame, converts to BufferedImage, and calls repaint  */
 	private void update() {
 		  
 		streamActive = false; //will be set to TRUE if function below is sucessful. 
 		
 		//OpenCV Dependance
-		img = getImage();  //can comment this out, will still display gauges
-		
-		if(firstRUn)
-		{
-			System.out.println("got here");
-			firstRUn = false;
-			System.out.println("width = " + img.getWidth(null) + "height = " + img.getHeight(null));
-
-			
-		}
-		
+		img = getImage();  //can comment this out, will still display gauges		
 		
 		if(img == null || !streamActive)  //failed to get video, still want to display everything else
 		{
@@ -271,10 +251,10 @@ public class VideoFeed extends JPanel implements Runnable {
     @Override
 	public void paintComponent(Graphics g) {
 
-    	//create a graphics object from the img, which will be edited -> this allows the edited image to be saved
     	
     	if(img != null)
     	{
+        	//create a graphics object from the img, which will be edited -> this allows the edited image to be saved
 	    	Graphics temp = img.getGraphics();
 	
 	    	if(temp == null) System.out.print("null");
@@ -312,6 +292,7 @@ public class VideoFeed extends JPanel implements Runnable {
 
 	}
 	
+	int maxFrames = 100;  //TEMPORARY for testing to ensure it doesn't record a crazy amount of frames
     private void doRecording(Graphics temp)
     {
     	//check whether to save video		  

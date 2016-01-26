@@ -8,5 +8,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/OpenCV"/>
 	<classpathentry kind="lib" path="C:/Program Files/Java/jre1.8.0_60/lib/ext/RXTXcomm.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/Xbee"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

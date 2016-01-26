@@ -38,7 +38,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     private OutputStream output;
 	final static int timeout = 2000;
 	final static int NEW_LINE_ASCII = 10;
-	final static int BAUD_RATE = 9600;
+	final static int BAUD_RATE = 57600;  //9600
 	
 	private StringBuffer received = new StringBuffer();
 	
@@ -189,33 +189,22 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     public void serialEvent(SerialPortEvent evt) {
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
+            	
+            	
+            	byte singleData = (byte)(input.read());
+            	System.out.print("Serial EventL ");
+            	System.out.println(singleData + " ");
+            	received.append(new String(new byte[] {singleData}));
+            	
+            	/*
             	char c;
-            	// Will have to test to make sure that casting to char works as expected
-            		
-            	//input.
-            	
-            	System.out.print(input.read() + " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.print(input.read()+ " ");
-            	System.out.println(input.read()+ " ");
-
-
-            	
-
-            	boolean tempor = true;
-            	while((c = (char)input.read()) > -1 && tempor) // read() returns -1 when buffer is empty
+            	while((c = (char) input.read()) > -1) // read() returns -1 when buffer is empty
             	{
-            		tempor = false;
             		received.append(c);
-            		//System.out.print("Serial Event ");
-            		//System.out.println(c + " ");
-            	}
+                	System.out.print("appended " + (char)input.read() + " ");
+            	}*/
+            	
+            	
                 String str;
             	String temp = received.toString();
             	if (temp.contains("*") && temp.contains("&")) {  //* is start character,  & is finish character
@@ -243,6 +232,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //output method: send an integer to this function, and it sends over Xbee to arduino
     public void write (int data) {
     	try {
+    		System.out.println("printing " + data);
     		output.write(data);
     		output.flush();  //clear the output buffer - don't let it wait
     	}

@@ -439,8 +439,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		GridBagConstraints c = new GridBagConstraints();
 		
 		
-		int videoW = 720, videoH = 576, fpH = 200;  //VideoGrabber
-		//int videoW = 640, videoH = 480, fpH = 200;  //webcam
+		//int videoW = 720, videoH = 576, fpH = 200;  //VideoGrabber
+		int videoW = 640, videoH = 480, fpH = 200;  //webcam
 
 				
 		JPanel videoFeedArea = new JPanel();
