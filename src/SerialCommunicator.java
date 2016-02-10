@@ -3,6 +3,8 @@ import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 import gnu.io.SerialPortEvent;
 import gnu.io.SerialPortEventListener;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -36,9 +38,12 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	private boolean connected = false;
     private InputStream input;
     private OutputStream output;
+    private static String COMMAND_MODE_CHAR = "+", A = "A", T = "T", C = "C", N = "N", CR = "\r", COMMAND_MODE_OK = "OK\r";
+    private static int TIMEOUT_ENTER_COMMAND_MODE = 1500;
+    
 	final static int timeout = 2000;
 	final static int NEW_LINE_ASCII = 10;
-	final static int BAUD_RATE = 57600;  //9600
+	final static int BAUD_RATE = 57600;  //57600;  //9600
 	
 	private StringBuffer received = new StringBuffer();
 	
@@ -117,10 +122,180 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	//in connected, then call FN to initialize the input and output streams. 
 		if (connected) {
 			if (initStreams() == true) {
+				
+				//this function gets into bypass mode
+				bypassModeRoutine();				
+				
 				initEventListener();  //add event listeners to input and output streams
 			}
+		
+			
+		
+			
+			
 		}
     }
+    
+    public void bypassModeRoutine(){
+    	
+    	boolean enteredBypassMode = false;
+		int numTries = 0, maxNumTries = 10;
+		
+		enteredBypassMode = checkInBypassMode();
+		
+		if(!enteredBypassMode)
+		{	
+			while(numTries++ < maxNumTries)
+			{
+				flushInputBuffer();					
+				enterBypassMode();	
+				flushInputBuffer();					
+		
+				enteredBypassMode = checkInBypassMode();
+				
+				if(enteredBypassMode)
+					break;
+				
+				try {
+					Thread.sleep(50);
+				} catch (InterruptedException e) {					}
+				
+			}
+		}
+		
+		if(enteredBypassMode)
+			System.out.println("Successfully entered bypass mode (" + numTries + " tries)");
+		else
+			System.out.println("Hit" + maxNumTries + " tries, didn't enter bypass mode ");
+
+		flushInputBuffer();
+    	
+    }
+    
+    public void enterBypassMode(){
+    	
+       	// Send the command mode sequence.
+    	try { 		  		
+    		
+    		output.write("\n".getBytes());
+    		output.write("B".getBytes());
+    		    		
+    	} catch (IOException e) {		}
+    }
+    
+    //get rid of everything in input serial buffer (mainly used during enterBypassMode procedure
+    private void flushInputBuffer()
+    {
+    	byte[] flush = new byte[256];
+       	try {
+			while(input.read(flush) > 0);  //keep calling it flushes so fast data is still arriving
+
+		} catch (IOException e) {				}    	
+    }
+    
+    //if what is sent gets echoed back, this is the behaviour  
+    boolean checkInBypassMode(){
+    	
+    	try {
+			output.write("o".getBytes());
+			
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {		}
+
+			
+			if(input.read() == -1)
+				return true;
+			else 
+				return false;			
+			
+		} catch (IOException e) {
+		}
+		return false;
+    }
+    
+    
+    /* These next two functions are never used, but are left as a reference  
+    private boolean enterCommandMode()  {
+		
+		// Enter in AT command mode (send '+++'). The process waits 1,5 seconds for the 'OK\n'.
+		byte[] readData = new byte[256];
+		byte[] testData = new byte[256];
+		
+		try {
+			// Send the command mode sequence.
+			output.write(COMMAND_MODE_CHAR.getBytes());
+			output.write(COMMAND_MODE_CHAR.getBytes());
+			output.write(COMMAND_MODE_CHAR.getBytes());			
+			
+			output.flush();
+			
+			// Wait some time to let the module generate a response.
+			Thread.sleep(TIMEOUT_ENTER_COMMAND_MODE);
+			
+			
+			
+			// Read data from the device (it should answer with 'OK\r').
+			int readBytes = input.read(readData);
+			if (readBytes < COMMAND_MODE_OK.length())
+			{	System.out.println("Failed to enter command mode, # bytes too low (= " + readBytes + ")");
+				String readString = new String(readData, 0, readBytes);
+				System.out.println(readString);
+				return false;
+			}
+			
+			// Check if the read data is 'OK\r'.
+			String readString = new String(readData, 0, readBytes);
+			if (!readString.contains(COMMAND_MODE_OK))
+			{	System.out.println(readString);
+				return false;
+			}
+			// Read data was 'OK\r'.
+			return true;
+		} catch (IOException e) {
+		} catch (InterruptedException e) {
+		}
+		return false;
+	}
+    
+    private boolean exitCommandMode(){
+    	
+    	byte[] readData = new byte[256];
+		try {
+			// Send the command mode sequence.
+			output.write(A.getBytes());
+			output.write(T.getBytes());
+			output.write(C.getBytes());
+			output.write(N.getBytes());
+			output.write(CR.getBytes());
+
+
+			
+			// Wait some time to let the module generate a response.
+			Thread.sleep(TIMEOUT_ENTER_COMMAND_MODE);
+			
+			// Read data from the device (it should answer with 'OK\r').
+			int readBytes = input.read(readData);
+			if (readBytes < COMMAND_MODE_OK.length())
+				return false;
+			
+			// Check if the read data is 'OK\r'.
+			String readString = new String(readData, 0, readBytes);
+			if (!readString.contains(COMMAND_MODE_OK))
+				return false;
+			
+			return true;
+
+			
+		} catch (IOException e) {
+		} catch (InterruptedException e) {
+		}
+		
+		return false;
+    	
+    }
+    */
+
     
     //disconnect from COM port
     public void disconnect() {
@@ -190,19 +365,39 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
             	
-            	
-            	byte singleData = (byte)(input.read());
-            	System.out.print("Serial EventL ");
-            	System.out.println(singleData + " ");
+            	//incoming data is read into an integer.  
+            	int integerData = input.read();   //leave as an integer to avoid having to case byte (unsigned) into a char (sort of signed)
+            	byte singleData = (byte)integerData;
+            	System.out.println("Character Received: " + (char)integerData + " (int value = " + integerData + ")");
             	received.append(new String(new byte[] {singleData}));
             	
-            	/*
+            	/*  Code to read more than one value is receiving data at high baud rate (since event only generated after buffer has been cleared)
+            	  
+            	int singleData; boolean newLine = false;
+            	System.out.print("Recevied: ");
+            	while((singleData = input.read()) > -1)
+            	{
+            		if(singleData != 64)    //64 = @, which is the character used to test if the arduino has entered bypass mode. 
+            		{
+            			newLine = true;
+            			received.append(new String(new byte[] {(byte)singledata}));
+            			System.out.print((char)singleData);            		
+            		}            	 
+            	}
+            	System.out.println("");
+            	  
+            	  
+            	  
+            	 
             	char c;
             	while((c = (char) input.read()) > -1) // read() returns -1 when buffer is empty
-            	{
+            	{	
+            		if(
+            			
             		received.append(c);
                 	System.out.print("appended " + (char)input.read() + " ");
-            	}*/
+            	}
+            	*/
             	
             	
                 String str;
@@ -232,7 +427,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //output method: send an integer to this function, and it sends over Xbee to arduino
     public void write (int data) {
     	try {
-    		System.out.println("printing " + data);
+    		System.out.println("printing " + (char)data);
     		output.write(data);
     		output.flush();  //clear the output buffer - don't let it wait
     	}

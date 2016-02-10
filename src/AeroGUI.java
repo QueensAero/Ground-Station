@@ -1,6 +1,4 @@
-import java.awt.Dimension;
 import java.awt.EventQueue;
-import java.awt.Frame;
 
 import javax.swing.JFrame;
 
@@ -24,8 +22,7 @@ public class AeroGUI {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				
-				//XbeeComm test = new XbeeComm();
-								
+							
 				try {
 					UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 					AeroGUI window = new AeroGUI();  //create an instance of AeroGUI class
@@ -59,10 +56,6 @@ public class AeroGUI {
 		main = new MainWindow(sc);
 		
 		frame.getContentPane().add(main, BorderLayout.CENTER);
-		
-		
-		
-
 		
 		//this overrides the closing event, in an attempt to properly terminate the application and end VideoFeed thread
 		frame.addWindowListener(new java.awt.event.WindowAdapter() {

@@ -45,13 +45,21 @@ import java.nio.file.StandardOpenOption;
  * This uses OpenCV libaray to handle the streaming from the Analog to USB device.  The OpenCV dependance is as minimal as posisbe
  * By commenting out the block of code marked by "openCV DEPENDANCE STARTS", as well as a few function calls to those functions (including one in AeroGUI 
  * class which is called for shutdown), this can function without having OpenCV installed. The only thing missing *should* be the video itself.
- * Dependencies:  InitCV -> from constructor, getImage -> in "update()", endCapture -> in AeroGUI "windowClosing()", code block (can block comment this out) 
+ * Dependencies:  
+ * 1. InitCV call -> from this classes constructor
+ * 2. getImage call -> in the function (in the class) called "update()"
+ * 3. endCapture -> in AeroGUI class "windowClosing()"
+ * 4. The code block indicated by ******** OpenCV Depednace starts****  -> block comments work well for this 
  * 
  * 
- * Webcam is often used for testing. To switch between webcam mode and videograbber mode, there are several steps:
- * 1) in the OpenCV dependance section ->  cap = new VideoCapture(1);   //0 = webcam, 1 = Analog2USB device
- * 2) right below: uncomment to the other line (image size variables) 
- * 3) Main window: int videoW = 720, videoH = 576, fpH = 200;  //VideoGrabber line 
+ * Webcam is often used for testing. To switch between webcam mode and videograbber mode, there is one step:
+ * 1) right below: first line in class declaring rows/cols/fpR/fpC variables, switch to other line 
+ * 
+ * 
+ * Worst case scenario testing:
+ * 
+ * 1. OpenCV streaming fails - make sure doesn't hang program!!
+ * 2. Serial communication stuff
  * 
  */
 
@@ -59,8 +67,8 @@ import java.nio.file.StandardOpenOption;
 public class VideoFeed extends JPanel implements Runnable {
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
-	private final static int rows = 480, cols = 640, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
-	//private final static int rows = 576, cols = 720, fpR = 200, fpC = cols;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private final static int rows = 480, cols = 640, fpR = 200, fpC = cols, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
+	//private final static int rows = 576, cols = 720, fpR = 200, fpC = cols, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
 
 	
 	//Timing/timestamping/file storing variables
@@ -82,12 +90,14 @@ public class VideoFeed extends JPanel implements Runnable {
 	private double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
 	boolean isDropped = false;  double altAtDrop = 0; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false, imageRealloc = false;
-	int currentRecordingFN = 0;
+	private int currentRecordingFN = 0;
+	private double frameRate = 0;
 
 	
 	//Gauge graphics
 	SpeedGauge speedGauge;
 	SpeedGauge altGauge;
+	CompassGauge compassGauge;
 	
 	//Constructor
 	public VideoFeed() {
@@ -120,6 +130,15 @@ public class VideoFeed extends JPanel implements Runnable {
 		}		
 		
 		
+		try {
+			compassGauge = new CompassGauge(100, 500, yCent-20);
+		} catch (FontFormatException | IOException e) {
+			System.out.print("gauge init error");
+
+		}
+		
+		
+		
 		//set the size of the painting space
 		Dimension size = new Dimension(cols, rows + fpR);
 		this.setPreferredSize(size);
@@ -135,6 +154,8 @@ public class VideoFeed extends JPanel implements Runnable {
 		time = System.currentTimeMillis();
 		VFThread.start();
 	}
+	
+	public int getVideoSrc(){	return videoSource;	}
 		
 	
 	/******************openCV DEPENDANCE STARTS **********************************/
@@ -151,7 +172,7 @@ public class VideoFeed extends JPanel implements Runnable {
 
 	private void initOpenCV(){
 		
-		cap = new VideoCapture(0);   //0 = webcam, 1 = Analog2USB device
+		cap = new VideoCapture(videoSource);   //0 = webcam, 1 = Analog2USB device
 		
 		// Check if video capturing is enabled]
 		if (!cap.isOpened()) { System.out.println("Could not open video feed.");}
@@ -239,11 +260,7 @@ public class VideoFeed extends JPanel implements Runnable {
 		//repaint the JFrame (paintComponent will be called)
 		this.repaint();
 		
-		//framerate code (prints frame rate every 500 frames)
-		if(FrameNum % 500 == 0 && FrameNum != 0)
-		{
-			System.out.println("FR = " + 500*1000/(System.currentTimeMillis() - time));  time = System.currentTimeMillis();
-		}	
+			
 				
 	}
 	
@@ -262,8 +279,12 @@ public class VideoFeed extends JPanel implements Runnable {
 	    	
 			speedGauge.draw((Graphics2D)temp);
 			altGauge.draw((Graphics2D)temp);
+			compassGauge.draw((Graphics2D)temp);
 			
 			temp.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
+			
+			
+			
 			if(isDropped)
 			{
 				temp.setColor(Color.GREEN);
@@ -275,6 +296,17 @@ public class VideoFeed extends JPanel implements Runnable {
 				temp.setColor(Color.RED);
 				temp.drawString("Payload Not Dropped", cols - 200, rows + 30); 			
 			}
+			
+			if(FrameNum % 5 == 0)
+			{   //framerate code
+				long curTime = System.currentTimeMillis();
+				frameRate = 5.0*1000.0/(System.currentTimeMillis()-time);
+				time = curTime;
+			}
+			temp.setColor(Color.GREEN);
+			temp.drawString("FR: " + (int)frameRate, 5, 20);
+
+			
 			
 			
 			doRecording(temp);

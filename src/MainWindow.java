@@ -43,8 +43,8 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData;
-	private JButton btnDrop, btnCamLeft, btnCamRight, btnCamCenter, btnSensorReset, btnPlaneRestart; //servo control buttons
-	private JButton btnStartRecording;  //button to start/stop recording
+	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
+	private JButton btnStartRecording, btnEnterBypass;  //button to start/stop recording
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
@@ -83,12 +83,10 @@ public class MainWindow extends JPanel implements PacketListener {
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
-		btnCamLeft.setEnabled(val);
-		btnCamRight.setEnabled(val);
-		btnCamCenter.setEnabled(val);
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
 		servoControlTextBox.setEditable(val);
+		btnEnterBypass.setEnabled(val);
 		btnsEnabled = val;
 	}
 	
@@ -238,29 +236,11 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
-			//when 'Cam Left' pressed
-			btnCamLeft.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					serialComm.write('a');
-					planeMessageConsole.println("Cam left sent.");
-				}
-			});
+		
 			
-			//when 'Cam Right' pressed
-			btnCamRight.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					serialComm.write('d');
-					planeMessageConsole.println("Cam right sent.");
-				}
-			});
 			
-			//when 'Cam Center' pressed
-			btnCamCenter.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					serialComm.write('x');
-					planeMessageConsole.println("Centre camera sent.");
-				}
-			});
+			
+		
 			
 			//when "reset sensor' pressed
 			btnSensorReset.addActionListener(new ActionListener() {
@@ -289,6 +269,16 @@ public class MainWindow extends JPanel implements PacketListener {
 					videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
 				}
 			});
+			
+			//when "Send '+++'" pressed
+			btnEnterBypass.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					
+					serialComm.bypassModeRoutine();
+				}
+			});
+			
+			
 	}/* END INITIALIZE BUTTONS */
 	
 	//called when drop command sent. Updates flag, prints out time and altitude of drop
@@ -383,14 +373,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnDrop = new JButton("Drop");
 		servoButtonPanel.add(btnDrop);
 		
-		btnCamLeft = new JButton("Cam Left");
-		servoButtonPanel.add(btnCamLeft);
-		
-		btnCamRight = new JButton("Cam Right");
-		servoButtonPanel.add(btnCamRight);
-		
-		btnCamCenter = new JButton("Cam Center");
-		servoButtonPanel.add(btnCamCenter);
+		//R Dowlling added
+		btnEnterBypass = new JButton("Enter Bypass");
+		servoButtonPanel.add(btnEnterBypass);
 		
 		btnSensorReset = new JButton("Sensor Reset");
 		servoButtonPanel.add(btnSensorReset);
@@ -398,9 +383,11 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnPlaneRestart = new JButton("Plane Restart");
 		servoButtonPanel.add(btnPlaneRestart);
 		
-		//RJD added
+		//R Dowlling added
 		btnStartRecording = new JButton("Start/Stop Recording");
 		servoButtonPanel.add(btnStartRecording);
+		
+		
 		
 		
 		JPanel servoTextPanel = new JPanel();
@@ -439,8 +426,18 @@ public class MainWindow extends JPanel implements PacketListener {
 		GridBagConstraints c = new GridBagConstraints();
 		
 		
-		//int videoW = 720, videoH = 576, fpH = 200;  //VideoGrabber
-		int videoW = 640, videoH = 480, fpH = 200;  //webcam
+	
+		videoFeed = new VideoFeed();
+		int videoW, videoH, fpH = 200;
+		if(videoFeed.getVideoSrc() == 0)
+		{
+			videoW = 640; videoH = 480;   //webcam
+		}
+		else
+		{
+			videoW = 720; videoH = 576;  //VideoGrabber
+		}
+		
 
 				
 		JPanel videoFeedArea = new JPanel();
@@ -452,7 +449,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		videoFeedArea.setMinimumSize(new Dimension(videoW, videoH + fpH));
 		videoFeedArea.setPreferredSize(new Dimension(videoW, videoH + fpH));
 		videoFeedArea.setMaximumSize(new Dimension(videoW, videoH + fpH));
-		videoFeed = new VideoFeed();
 		videoFeedArea.add(videoFeed);
 		
 		c.fill = GridBagConstraints.NONE;
@@ -500,7 +496,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private boolean validChar (char ch) {
 		if (ch == 'P' || ch == 'a' || ch == 'd'|| ch == 'x') {
 			return true;
-		}
+		}  
 		return false;
 	}
 	
