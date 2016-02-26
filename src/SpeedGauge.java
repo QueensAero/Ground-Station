@@ -87,7 +87,7 @@ public class SpeedGauge { //implements Gauge {
 	//@Override
 	public void draw(Graphics2D graphics) {
 		drawBackground(graphics);
-		drawRuler(graphics);
+		//drawRuler(graphics);
 		drawDigits(graphics);
 		//drawDistance(graphics);
 		drawSpeed(graphics);
@@ -199,8 +199,8 @@ public class SpeedGauge { //implements Gauge {
 		
 		_p1 = new Point(0, -ARROW_MAX_HEIGHT / 2.0f);
 		_p2 = new Point(0, ARROW_MAX_HEIGHT / 2.0f);
-		_p3 = new Point(-radius + arrowPadding, ARROW_MIN_HEIGHT / 2.0f);
-		_p4 = new Point(-radius + arrowPadding, -ARROW_MIN_HEIGHT / 2.0f);
+		_p3 = new Point(-radius*0.9 + arrowPadding, ARROW_MIN_HEIGHT / 2.0f);  //added 0.9 scaling to reduce arrow length
+		_p4 = new Point(-radius*0.9 + arrowPadding, -ARROW_MIN_HEIGHT / 2.0f);  //same ^
 		
 		center = new Point(xCenter, yCenter);
 	}
@@ -216,10 +216,10 @@ public class SpeedGauge { //implements Gauge {
 		graphics.setColor(new Color(1.0f, 1.0f, 1.0f, 0.5f));
 		
 		graphics.setStroke(new BasicStroke(2.5f));
-		graphics.draw(bigRuler);
+		//graphics.draw(bigRuler);
 		
 		graphics.setStroke(new BasicStroke(1.5f));
-		graphics.draw(smallRuler);
+		//graphics.draw(smallRuler);
 	}
 	
 	private void drawDigits(Graphics2D graphics) {
@@ -227,16 +227,19 @@ public class SpeedGauge { //implements Gauge {
 		graphics.setFont(cleanFont);
 		graphics.setColor(Color.WHITE);
 		
-		for (int i = 0; i < 11; i++) {
+		int numMarkers = 5;
+		for (int i = 0; i < numMarkers; i++) {
 			
-			float degrees = 150.0f + i * STEP_DEGREES;
+			int totalDegreeSpan = 240;  //based on original implementation
+			float degreeStep = 1.0f*totalDegreeSpan/(numMarkers-1);
+			float degrees = 150.0f + i * degreeStep;
 			float radians = DEG_2_RAD * degrees;
 			
-			float r = 0.75f * radius;
+			float r = 0.65f * radius;  //changed from original 0.75f
 			float x = (float) (r * cos(radians)) + xCenter;
 			float y = (float) (r * sin(radians)) + yCenter;
 			
-			int value = i * maxVal/10; //10;
+			int value = i * maxVal/(numMarkers-1); //10;
 			String text = "" + value;
 			
 			FontMetrics metrics = graphics.getFontMetrics();
@@ -292,7 +295,7 @@ public class SpeedGauge { //implements Gauge {
 		graphics.draw(speedBox);
 		
 		String text = getSpeedAsText();
-		graphics.setFont(lcdFont.deriveFont(radius / 4.5f));
+		graphics.setFont(cleanFont.deriveFont(radius / 4.5f));
 		
 		FontMetrics metrics = graphics.getFontMetrics();
 		

@@ -12,6 +12,9 @@ import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.MultipleGradientPaint;
+import java.awt.Paint;
+import java.awt.RadialGradientPaint;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
@@ -96,10 +99,11 @@ public class CompassGauge { //implements Gauge {
 	public double velocityMetersPerSecond;
 	
 	
+	private static final float ARROW_MAX_HEIGHT = 15.0f;
+	private static final float ARROW_MIN_HEIGHT = 3.0f;
 	
 	
-	
-	private double angleRadians;
+	private double angleRadians = 0;
 	
 	private double minLongitude;
 	private double maxLatitude;
@@ -108,11 +112,21 @@ public class CompassGauge { //implements Gauge {
 	private int xOffset;
 	private int yOffset;
 	
+	private double heading = 0;
+	
+	
 	private GeneralPath path;
 	private Shape circle;
 	private Shape dot;
+	private Shape pivot;
+	private Shape shadow;
+	private Paint gradient;
 	
 	private Font font;
+	
+	private Point _p1, _p2, _p3, _p4;
+	private Point center;
+
 	
 	//public CompassGauge(Track track, int mapSizePixels, int x, int y) throws FontFormatException, IOException {
 	public CompassGauge(int mapSizePixels, int x, int y) throws FontFormatException, IOException {
@@ -124,129 +138,147 @@ public class CompassGauge { //implements Gauge {
 		//path = getTrackPath(track, mapSizePixels);
 		circle = new Ellipse2D.Float(x, y, mapSizePixels, mapSizePixels);
 		
-		int radius = 12;
+		int radius = 15;
 		dot = new Ellipse2D.Double(
 			xOffset - radius / 2,
 			yOffset - radius / 2,
 			radius, radius
 		);
 		
-		//FontLoader loader = FontLoader.getInstance();
-		//font = loader.getFont("LondonBetween.ttf", mapSizePixels / 15.0f);
 		
+		pivot = getCircle(xOffset, yOffset, radius / 10.0f);
 		font = new Font("TimesRoman", Font.BOLD, 12);
+		makePoints();
+		makeShadow();
+
 	}
+	
+
 	
 	//@Override
 	public void draw(Graphics2D graphics) {
 		
 		//drawTrack(graphics);
-		drawDot(graphics);
 		drawCompass(graphics);
-		
 		graphics.setTransform(new AffineTransform());
+		drawArrow(graphics);
+		drawDot(graphics);
+
+
 	}
+	
 	
 	private AffineTransform getTransform() {
 		AffineTransform transform = new AffineTransform();
-		transform.rotate(angleRadians, xOffset, yOffset);
+		transform.rotate(0, xOffset, yOffset);  //replace 0 with 'angleradians' if you want the actual gauge to rotate (not just arrow)
 		return transform;
 	}
 	
-	/*
-	@Override
-	public void updateValue(TrackPoint trackPoint, Map<String, Extension> extensions) {
+private void drawArrow(Graphics2D graphics) {
 		
-		current = trackPoint;
+		// shadow
+		graphics.setPaint(gradient);
+		graphics.setStroke(new BasicStroke(1.0f));
+		graphics.fill(shadow);
 		
-		CompassExtension extension = (CompassExtension) extensions.get(CompassExtension.KEY);
-		angleRadians = extension.getAngleRadians();
+		// arrow
+		//double degrees = (kmh * -2.4) + 30;
+		//double degrees = -240*kmh/maxVal+30;  //CCW = positive, pointing left = neutral position
+		//double radians = degrees * PI / 180.0;
+		double radians  = angleRadians;
+		
+		Point p1 = _p1.rotate(radians).toScreen(center);
+		Point p2 = _p2.rotate(radians).toScreen(center);
+		Point p3 = _p3.rotate(radians).toScreen(center);
+		Point p4 = _p4.rotate(radians).toScreen(center);
+		
+		GeneralPath arrow = new GeneralPath();
+		arrow.moveTo(p1.x, p1.y);
+		arrow.lineTo(p2.x, p2.y);
+		arrow.lineTo(p3.x, p3.y);
+		arrow.lineTo(p4.x, p4.y);
+		arrow.closePath();
+		
+		graphics.setColor(Color.WHITE);
+		graphics.fill(arrow);
+		
+		graphics.setColor(new Color(0.4f, 0.4f, 0.4f));
+		graphics.draw(arrow);
+		
+		// pivot
+		graphics.setStroke(new BasicStroke(1.5f));
+		
+		graphics.setColor(Color.BLACK);
+		graphics.fill(pivot);
+		
+		graphics.setColor(Color.BLACK);
+		graphics.draw(pivot);
+	}
+
+	private void makePoints() {
+	
+		int arrowPadding = 5;  //small inside
+		
+		_p1 = new Point(0, -ARROW_MAX_HEIGHT / 2.0f);
+		_p2 = new Point(0, ARROW_MAX_HEIGHT / 2.0f);
+		_p3 = new Point(-radius + arrowPadding, ARROW_MIN_HEIGHT / 2.0f);
+		_p4 = new Point(-radius + arrowPadding, -ARROW_MIN_HEIGHT / 2.0f);
+		
+		
+		
+		center = new Point(xOffset, yOffset);
 	}
 	
-	public MercatorProjection getProjection() {
-		return projection;
+	private Shape getCircle(float xCenter, float yCenter, float radius) {
+		
+		float x = xCenter - radius;
+		float y = yCenter - radius;
+		float diameter = 2 * radius;
+		
+		return new Ellipse2D.Float(x, y, diameter, diameter);
 	}
 	
-	private GeneralPath getTrackPath(Track track, int mapSizePixels) {
+	
+	//@Override
+	public void updateValue(double heading){     //TrackPoint trackPoint, Map<String, Extension> extensions) {
 		
-		double mapSizeDegrees = MAP_SIZE_METERS / Earth.METERS_PER_DEGREE;
-		double scaleFactor = mapSizePixels / mapSizeDegrees;
-		projection = new MercatorProjection(scaleFactor);
+		angleRadians = heading*PI/180.0;;
 		
-		findMinMax(track);
-		
-		GeneralPath path = new GeneralPath();
-		
-		int numPoints = track.getNumPoints();
-		for (int i = 0; i < numPoints; i++) {
+		//current = trackPoint;
+		//CompassExtension extension = (CompassExtension) extensions.get(CompassExtension.KEY);
+		//angleRadians = extension.getAngleRadians();
+	}
+	
+	
+	private void makeShadow() {
 			
-			TrackPoint trackPoint = track.getPoint(i);
-			Point point = toScreen(trackPoint);
+			float r = radius / 6.0f;
+			shadow = getCircle(xOffset, yOffset, r);
 			
-			if (i == 0) {
-				path.moveTo(point.x, point.y);
-			} else {
-				path.lineTo(point.x, point.y);
-			}
+			gradient = new RadialGradientPaint(
+					xOffset, yOffset, r,
+				new float[]{
+					0.5f,
+					1.0f
+				},
+				new Color[]{
+					new Color(0.0f, 0.0f, 0.0f, 1.0f),
+					new Color(0.0f, 0.0f, 0.0f, 0.0f)
+				},
+				MultipleGradientPaint.CycleMethod.NO_CYCLE
+			);
 		}
-		
-		return path;
-	}
-	
-	private void findMinMax(Track track) {
-		
-		minLongitude = 180;
-		maxLatitude = 0;
-		
-		int numPoints = track.getNumPoints();
-		for (int i = 0; i < numPoints; i++) {
-			
-			TrackPoint trackPoint = track.getPoint(i);
-			double lon = trackPoint.longitudeDegrees;
-			double lat = trackPoint.latitudeDegrees;
-			
-			if (lon < minLongitude) minLongitude = lon;
-			if (lat > maxLatitude) maxLatitude = lat;
-		}
-	}
-	
-	private Point toScreen(TrackPoint trackPoint) {
-		
-		double lon = trackPoint.longitudeDegrees - minLongitude;
-		double lat = maxLatitude - trackPoint.latitudeDegrees;
-		
-		Point point = projection.compute(new Point(lon, lat));
-		return new Point(point.x, point.y);
-	}
 	
 	
-	
-	
-	private void drawTrack(Graphics2D graphics) {
-		
-		Point center = toScreen(current);
-		
-		AffineTransform transform = getTransform();
-		transform.translate(xOffset - center.x, yOffset - center.y);
-		
-		graphics.setClip(circle);
-		graphics.setTransform(transform);
-		
-		graphics.setColor(new Color(1.0f, 1.0f, 1.0f, 0.8f));
-		graphics.setStroke(new BasicStroke(4.0f));
-		graphics.draw(path);
-		
-		graphics.setClip(null);
-		graphics.setTransform(getTransform());
-	}  */
+
 	
 	private void drawDot(Graphics2D graphics) {
 		
-		graphics.setColor(new Color(0.41f, 0.57f, 0.69f, 0.7f));
+		graphics.setColor(new Color(0.41f, 0.57f, 0.69f, 1));  //originally alpha channel (transparancy was 0.7f, is now 1)
 		graphics.fill(dot);
 		
 		graphics.setColor(new Color(0.0f, 0.17f, 0.29f, 0.8f));
-		graphics.setStroke(new BasicStroke(2.0f));
+		//graphics.setStroke(new BasicStroke(2.0f));
 		graphics.draw(dot);
 	}
 	
@@ -288,3 +320,82 @@ public class CompassGauge { //implements Gauge {
 		}
 	}
 }
+
+
+/*
+public MercatorProjection getProjection() {
+	return projection;
+}
+
+private GeneralPath getTrackPath(Track track, int mapSizePixels) {
+	
+	double mapSizeDegrees = MAP_SIZE_METERS / Earth.METERS_PER_DEGREE;
+	double scaleFactor = mapSizePixels / mapSizeDegrees;
+	projection = new MercatorProjection(scaleFactor);
+	
+	findMinMax(track);
+	
+	GeneralPath path = new GeneralPath();
+	
+	int numPoints = track.getNumPoints();
+	for (int i = 0; i < numPoints; i++) {
+		
+		TrackPoint trackPoint = track.getPoint(i);
+		Point point = toScreen(trackPoint);
+		
+		if (i == 0) {
+			path.moveTo(point.x, point.y);
+		} else {
+			path.lineTo(point.x, point.y);
+		}
+	}
+	
+	return path;
+}
+
+private void findMinMax(Track track) {
+	
+	minLongitude = 180;
+	maxLatitude = 0;
+	
+	int numPoints = track.getNumPoints();
+	for (int i = 0; i < numPoints; i++) {
+		
+		TrackPoint trackPoint = track.getPoint(i);
+		double lon = trackPoint.longitudeDegrees;
+		double lat = trackPoint.latitudeDegrees;
+		
+		if (lon < minLongitude) minLongitude = lon;
+		if (lat > maxLatitude) maxLatitude = lat;
+	}
+}
+
+private Point toScreen(TrackPoint trackPoint) {
+	
+	double lon = trackPoint.longitudeDegrees - minLongitude;
+	double lat = maxLatitude - trackPoint.latitudeDegrees;
+	
+	Point point = projection.compute(new Point(lon, lat));
+	return new Point(point.x, point.y);
+}
+
+
+
+
+private void drawTrack(Graphics2D graphics) {
+	
+	Point center = toScreen(current);
+	
+	AffineTransform transform = getTransform();
+	transform.translate(xOffset - center.x, yOffset - center.y);
+	
+	graphics.setClip(circle);
+	graphics.setTransform(transform);
+	
+	graphics.setColor(new Color(1.0f, 1.0f, 1.0f, 0.8f));
+	graphics.setStroke(new BasicStroke(4.0f));
+	graphics.draw(path);
+	
+	graphics.setClip(null);
+	graphics.setTransform(getTransform());
+}  */

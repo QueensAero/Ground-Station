@@ -3,6 +3,7 @@ import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 import gnu.io.SerialPortEvent;
 import gnu.io.SerialPortEventListener;
+import gnu.io.UnsupportedCommOperationException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,6 +41,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     private OutputStream output;
     private static String COMMAND_MODE_CHAR = "+", A = "A", T = "T", C = "C", N = "N", CR = "\r", COMMAND_MODE_OK = "OK\r";
     private static int TIMEOUT_ENTER_COMMAND_MODE = 1500;
+    boolean inBypassMode = false;
     
 	final static int timeout = 2000;
 	final static int NEW_LINE_ASCII = 10;
@@ -108,7 +110,8 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		//Why not just do: serialPort = (SerialPort) selectedPortIdentifier.open(this.getClass().getName(), timeout);
     		
     		//set parameters (Baud rate, #data bits, # stop bits, bit parity
-    		serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+    		serialPort.setSerialPortParams(9600,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+    		
     		
     		//update status bool and print success to console
     		connected = true;  
@@ -124,7 +127,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 			if (initStreams() == true) {
 				
 				//this function gets into bypass mode
-				bypassModeRoutine();				
+				inBypassMode = bypassModeRoutine();				
 				
 				initEventListener();  //add event listeners to input and output streams
 			}
@@ -136,30 +139,30 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 		}
     }
     
-    public void bypassModeRoutine(){
+    public boolean bypassModeRoutine(){
     	
     	boolean enteredBypassMode = false;
-		int numTries = 0, maxNumTries = 10;
+    	
+		try {
+			serialPort.setSerialPortParams(9600,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+		} catch (UnsupportedCommOperationException e1) {	}
+
+    	
+		int numTries = 0, maxNumTries = 3;
 		
 		enteredBypassMode = checkInBypassMode();
 		
 		if(!enteredBypassMode)
 		{	
-			while(numTries++ < maxNumTries)
+			while(++numTries <= maxNumTries)
 			{
-				flushInputBuffer();					
 				enterBypassMode();	
-				flushInputBuffer();					
-		
+				System.out.println("test)");
 				enteredBypassMode = checkInBypassMode();
 				
 				if(enteredBypassMode)
 					break;
-				
-				try {
-					Thread.sleep(50);
-				} catch (InterruptedException e) {					}
-				
+			
 			}
 		}
 		
@@ -169,18 +172,22 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 			System.out.println("Hit" + maxNumTries + " tries, didn't enter bypass mode ");
 
 		flushInputBuffer();
+		
+		//change back to desired baudrate 
+		try {
+			serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+		} catch (UnsupportedCommOperationException e1) {	}
+		
+		return enteredBypassMode;
     	
     }
     
     public void enterBypassMode(){
     	
-       	// Send the command mode sequence.
-    	try { 		  		
+		try {
+			output.write("B".getBytes());
+		} catch (IOException e) {		}
     		
-    		output.write("\n".getBytes());
-    		output.write("B".getBytes());
-    		    		
-    	} catch (IOException e) {		}
     }
     
     //get rid of everything in input serial buffer (mainly used during enterBypassMode procedure
@@ -195,16 +202,14 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     
     //if what is sent gets echoed back, this is the behaviour  
     boolean checkInBypassMode(){
-    	
+
+    	flushInputBuffer();		
+    	byte[] waste = new byte[256];
+
     	try {
 			output.write("o".getBytes());
 			
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {		}
-
-			
-			if(input.read() == -1)
+			if(input.read(waste) <= 0)
 				return true;
 			else 
 				return false;			
@@ -215,7 +220,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     }
     
     
-    /* These next two functions are never used, but are left as a reference  
+    /* These next two functions are never used, but are left as a reference.  They can be easily accomplished with XCTU
     private boolean enterCommandMode()  {
 		
 		// Enter in AT command mode (send '+++'). The process waits 1,5 seconds for the 'OK\n'.
@@ -366,29 +371,35 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             try {
             	
             	//incoming data is read into an integer.  
-            	int integerData = input.read();   //leave as an integer to avoid having to case byte (unsigned) into a char (sort of signed)
-            	byte singleData = (byte)integerData;
-            	System.out.println("Character Received: " + (char)integerData + " (int value = " + integerData + ")");
-            	received.append(new String(new byte[] {singleData}));
+            	//int integerData = input.read();   //leave as an integer to avoid having to case byte (unsigned) into a char (sort of signed)
+            	//byte singleData = (byte)integerData;
+            	//System.out.println("Character Received: " + (char)integerData + " (int value = " + integerData + ")");
+            	//received.append(new String(new byte[] {singleData}));
             	
-            	/*  Code to read more than one value is receiving data at high baud rate (since event only generated after buffer has been cleared)
-            	  
+            	// Code to read more than one value is receiving data at high baud rate (since event only generated after buffer has been cleared)
             	int singleData; boolean newLine = false;
             	System.out.print("Recevied: ");
             	while((singleData = input.read()) > -1)
-            	{
-            		if(singleData != 64)    //64 = @, which is the character used to test if the arduino has entered bypass mode. 
+            	{	
+            		if(singleData != 64 && singleData != 224)    //64 = @, 'test' character. If at 9600 baud, @ is sent as 224  
             		{
             			newLine = true;
-            			received.append(new String(new byte[] {(byte)singledata}));
-            			System.out.print((char)singleData);            		
-            		}            	 
+            			received.append(new String(new byte[] {(byte)singleData}));
+            			System.out.print((char)singleData); 
+            			if(singleData == 38)  //38 = '&' which is end of packet character.  
+            				break;
+            		}	
+            		else
+            		{
+                		System.out.println("Received test character");
+
+            		}
+            			
             	}
-            	System.out.println("");
-            	  
-            	  
-            	  
+            	if(newLine)
+            		System.out.println("");      	  
             	 
+            	 /*
             	char c;
             	while((c = (char) input.read()) > -1) // read() returns -1 when buffer is empty
             	{	

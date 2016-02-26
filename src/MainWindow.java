@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
+import javax.swing.BoxLayout;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -123,6 +124,8 @@ public class MainWindow extends JPanel implements PacketListener {
 						}
 					}
 					servoControlTextBox.setText("");
+					
+					//add response to this!!
 				}
 			});
 			
@@ -180,10 +183,14 @@ public class MainWindow extends JPanel implements PacketListener {
 						if (btnsEnabled) {
 							btnSensorReset.setEnabled(true);
 							btnPlaneRestart.setEnabled(true);
+							btnStartRecording.setEnabled(true);
+							btnEnterBypass.setEnabled(true);
 						}
 						else {
 							btnSensorReset.setEnabled(false);
 							btnPlaneRestart.setEnabled(false);
+							btnStartRecording.setEnabled(false);
+							btnEnterBypass.setEnabled(false);
 						}
 					}
 					else {
@@ -294,14 +301,25 @@ public class MainWindow extends JPanel implements PacketListener {
 	
 	//mess of a function intializing the layout of the GUI
 	private void initializeComponents() {
-		this.setLayout(new GridLayout(0, 2, 0, 0));
-		JPanel panel = new JPanel();
-		panel.setLayout(new GridLayout(4, 1, 0, 0));
 		
+		/*general idea is that GridLayout is overriding structure:  two columns,
+		* Next each of those column can have panels within them with a grid layout. Ie. left side (called panel) has 5 columns
+		* Right side 
+		*/
+		
+		
+		this.setLayout(new GridLayout(0, 2, 0, 0));
+
+		
+		JPanel panel = new JPanel();
+		panel.setLayout(new GridLayout(5, 1, 0, 0));  //changed from 4 rows to 5 rows, to move dataLogger to left side
+		
+		//Top panel eventually has the data control panel &  commPortControl panel added to it.  This is top left 2 panels
 		JPanel topPanel = new JPanel();
 		topPanel.setLayout(new GridLayout(2, 1, 0, 0));
-		panel.add(topPanel);
 		
+		
+		//data control panel. Top left panel containing curent roll/spd/pitch/alt
 		JPanel dataControlPanel = new JPanel();
 		dataControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
 		dataControlPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
@@ -335,6 +353,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataControlPanel.add(altAtDrop);
 		dataControlPanel.add(lblAltAtDrop);
 		
+		
+		//Panel containing connect/disconnect/refresh buttons for connecting to Comm Port
 		JPanel commPortControlPanel = new JPanel();
 		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
 		commPortControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Comm. Port"));
@@ -354,12 +374,15 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnClearData = new JButton("Clear");
 		commPortControlPanel.add(btnClearData);
 		
+		
+		
+		
+		//Servo control panel.  This has two rows -> the servo buttons panel & servo text panel 
 		JPanel servoControlPanel = new JPanel();
 		servoControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Controls"));
-
-		panel.add(servoControlPanel);
 		servoControlPanel.setLayout(new GridLayout(0, 2, 0, 0));
 		
+		//servo button panel, subpanel in the servoControlPanel
 		JPanel servoButtonPanel = new JPanel();
 		servoButtonPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
 		servoControlPanel.add(servoButtonPanel);
@@ -388,16 +411,21 @@ public class MainWindow extends JPanel implements PacketListener {
 		servoButtonPanel.add(btnStartRecording);
 		
 		
-		
-		
+		//servo text panel. Subpanel in servo Control panel, has the label for the user enter char button
 		JPanel servoTextPanel = new JPanel();
 		servoControlPanel.add(servoTextPanel);
 		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
-
 		servoControlTextBox = new JTextField();
 		servoTextPanel.add(servoControlTextBox);
 		servoControlTextBox.setColumns(10);
 		servoTextPanel.add(new JLabel("Valid Chars are: P (drop), a (cam left), d (cam right), x (cam center)"));
+
+		
+		
+		
+		
+		
+		//Panel containing the plane messages.  This is above Console panel
 		JPanel planeMessagePanel = new JPanel();
 		planeMessagePanel.setBorder(new TitledBorder(new EtchedBorder(), "Plane Messages"));
 		planeMessagePanel.setLayout(new BorderLayout());
@@ -406,11 +434,11 @@ public class MainWindow extends JPanel implements PacketListener {
 		planeMessageConsole = new PrintStream(new TextAreaOutputStream(planeMessageTextArea));
 		planeMessageScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		planeMessagePanel.add(planeMessageScroller);
-		panel.add(planeMessagePanel);
 		
+		
+		//Panel containing the console (System.out is mapped to here)
 		JPanel consolePanel = new JPanel();
 		consolePanel.setBorder(new TitledBorder(new EtchedBorder(), "Console"));
-		panel.add(consolePanel);
 		consoleTextArea = new JTextArea();
 		JScrollPane consoleScroller = new JScrollPane(consoleTextArea);
 		console = new PrintStream(new TextAreaOutputStream(consoleTextArea));
@@ -419,16 +447,43 @@ public class MainWindow extends JPanel implements PacketListener {
 		System.setOut(console);
 		System.setErr(console);
 		consolePanel.add(consoleScroller);
+
 		
+		//panel cotaining the data logging
+		JPanel logPanel = new JPanel();
+		logPanel.setLayout(new BorderLayout());
+		dataLoggerTextArea = new JTextArea();
+		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
+		dataLoggerTextArea.setMinimumSize(new Dimension(640, 300));	//added, don't think it does anything
+		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
+		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
+		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
+		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
 		
-		JPanel panel_1 = new JPanel();
-		panel_1.setLayout(new GridBagLayout());
-		GridBagConstraints c = new GridBagConstraints();
 		
 		
 	
+		
+		//Add the sub JPanels to the LHS JPanel
+		panel.add(topPanel);
+		panel.add(servoControlPanel);
+		panel.add(planeMessagePanel);
+		panel.add(consolePanel);
+		panel.add(logPanel);  //panel_1.add(logPanel, c);
+		
+		
+		dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
+
+		
+		
+		//RIGHT HAND SIDE
+		JPanel right_panel = new JPanel();
+		right_panel.setLayout(new GridBagLayout());  //changed from 4 rows to 5 rows, to move dataLogger to left side
+		
+		//declare videoFeed class
 		videoFeed = new VideoFeed();
-		int videoW, videoH, fpH = 200;
+		int videoW, videoH, fpHeight = 200;
 		if(videoFeed.getVideoSrc() == 0)
 		{
 			videoW = 640; videoH = 480;   //webcam
@@ -437,47 +492,39 @@ public class MainWindow extends JPanel implements PacketListener {
 		{
 			videoW = 720; videoH = 576;  //VideoGrabber
 		}
+		int totalVidHeight = videoH + fpHeight;
 		
-
-				
+		//declare jpanel on right side, which contains the videofeed
 		JPanel videoFeedArea = new JPanel();
-
-		videoFeedArea.setLayout(new FlowLayout());
-
-		
-		videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
-		videoFeedArea.setMinimumSize(new Dimension(videoW, videoH + fpH));
-		videoFeedArea.setPreferredSize(new Dimension(videoW, videoH + fpH));
-		videoFeedArea.setMaximumSize(new Dimension(videoW, videoH + fpH));
+		//videoFeedArea.setLayout(new FlowLayout());
+		//videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
+		videoFeedArea.setMinimumSize(new Dimension(videoW, totalVidHeight));
 		videoFeedArea.add(videoFeed);
 		
-		c.fill = GridBagConstraints.NONE;
-		c.gridx = 0;
-		c.gridy = 1;
-		panel_1.add(videoFeedArea, c);
-
-		JPanel logPanel = new JPanel();
-		logPanel.setLayout(new BorderLayout());
-		dataLoggerTextArea = new JTextArea();
-		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		dataLoggerTextArea.setMinimumSize(new Dimension(640, 300));	//added
-		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
-		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
-		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
 		
-		c.fill = GridBagConstraints.BOTH;
+		//create target jpanel (has rings)
+		Targeter targeter = new Targeter();
+		JPanel targeterPanel = new JPanel();
+		//targeterPanel.setLayout(new BorderLayout());
+		//targeterPanel.setBorder(new TitledBorder(new EtchedBorder(), "Targeter"));
+		targeterPanel.setMinimumSize(new Dimension(targeter.getCols(), targeter.getRows()));
+		targeterPanel.add(targeter);
+		
+		
+		GridBagConstraints c = new GridBagConstraints(); //constraints for the overall grid (I think)
 		c.gridx = 0;
 		c.gridy = 0;
-		c.weightx = 1.0;
-		c.weighty = 1.0;
+		c.anchor = GridBagConstraints.PAGE_START;
 		
-		panel_1.add(logPanel, c);
-		dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
+		//add subpanels to right sdie
+		right_panel.add(videoFeedArea,c);
+		c.gridy = 1;
+		right_panel.add(targeter,c);
 
+		
+		
 		this.add(panel);
-		this.add(panel_1);
+		this.add(right_panel);
 	}
 	
 	//called from SerialCommunicator?

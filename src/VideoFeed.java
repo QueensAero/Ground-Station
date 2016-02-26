@@ -6,6 +6,7 @@ import java.awt.FontFormatException;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
@@ -53,7 +54,7 @@ import java.nio.file.StandardOpenOption;
  * 
  * 
  * Webcam is often used for testing. To switch between webcam mode and videograbber mode, there is one step:
- * 1) right below: first line in class declaring rows/cols/fpR/fpC variables, switch to other line 
+ * 1) right below: first line in class declaring vidRows/cols/fpR/fpC variables, switch to other line 
  * 
  * 
  * Worst case scenario testing:
@@ -67,9 +68,11 @@ import java.nio.file.StandardOpenOption;
 public class VideoFeed extends JPanel implements Runnable {
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
-	private final static int rows = 480, cols = 640, fpR = 200, fpC = cols, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
-	//private final static int rows = 576, cols = 720, fpR = 200, fpC = cols, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
-
+	private final static int vidRows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
+	//private final static int vidRows = 576, cols = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
+	
+	private final static int fpRows = 150, totRows = fpRows + vidRows;
+	//note: there are ~1000 vertical pixels to work with.  This takes up 150+576 = 776, leaving ~250 for other stuff
 	
 	//Timing/timestamping/file storing variables
 	private int FrameNum = 0; 
@@ -84,15 +87,20 @@ public class VideoFeed extends JPanel implements Runnable {
 	private volatile boolean endThread = false;
 
 	//Buffered Image container
-	private Image img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
+	private BufferedImage img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
 
 	//state variables (containing information about current state of plane)
 	private double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
-	boolean isDropped = false;  double altAtDrop = 0; //whether the payload has been dropped
+	boolean isDropped = false;  double altAtDrop = 0, heading = 0; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false, imageRealloc = false;
 	private int currentRecordingFN = 0;
 	private double frameRate = 0;
+	
+	
+	//private int compassDiameter = targetAreaRows-50;
 
+	
+	
 	
 	//Gauge graphics
 	SpeedGauge speedGauge;
@@ -112,9 +120,9 @@ public class VideoFeed extends JPanel implements Runnable {
 		startDate = new String(sdf.format(date));	
 		
 		/* For the visual speedometer/altimeter gauge */
-		int radius = 90, yCent = rows + fpR/2;
+		int radius = (int)(0.9*fpRows/2), yCent = vidRows + fpRows/2; 
 		try {
-			speedGauge = new SpeedGauge(100,yCent,radius, 40, "m/s");
+			speedGauge = new SpeedGauge(radius,yCent,radius, 40, "m/s");
 		} catch (FontFormatException e) {
 			System.out.print("gauge init error");
 		} catch (IOException e) {
@@ -122,30 +130,25 @@ public class VideoFeed extends JPanel implements Runnable {
 		}
 		
 		try {
-			altGauge = new SpeedGauge(300,yCent,radius, 300, "ft");
+			altGauge = new SpeedGauge(3*radius,yCent,radius, 300, "ft");
 		} catch (FontFormatException e) {
 			System.out.print("gauge init error");
 		} catch (IOException e) {
 			System.out.print("gauge init error");
 		}		
 		
-		
-		try {
-			compassGauge = new CompassGauge(100, 500, yCent-20);
+		 try {
+		 
+			compassGauge = new CompassGauge((int)(radius*2*0.9), 4*radius, (int)(yCent-radius*0.9));  //x4 since values passed are TL, 0.9 scales to spdGauge sizing
 		} catch (FontFormatException | IOException e) {
 			System.out.print("gauge init error");
 
 		}
 		
 		
-		
 		//set the size of the painting space
-		Dimension size = new Dimension(cols, rows + fpR);
+		Dimension size = new Dimension(cols, totRows); 
 		this.setPreferredSize(size);
-		this.setMinimumSize(size);
-		this.setMaximumSize(size);	
-		this.setSize(size);
-		//this.revalidate();
 				
 				
 		
@@ -167,7 +170,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	private VideoCapture cap;
 	
 	//Matricies (for holding images)
-	private Mat CVimg = new Mat(rows, cols, 16);
+	private Mat CVimg = new Mat(vidRows, cols, 16);
 	//http://ninghang.blogspot.ca/2012/11/list-of-mat-type-in-opencv.html lists the types, 16 = CV_8UC3
 
 	private void initOpenCV(){
@@ -179,19 +182,17 @@ public class VideoFeed extends JPanel implements Runnable {
 		
 	}
 	
-	private Image getImage(){
+	private BufferedImage getImage(){
 		
 		cap.read(CVimg);  //read a new frame -> this also updates the matrix combinedImgCV since CVimg is a subset of that
 
-		//will need to do this for the actual frames from the camera to check the image dimensions
-		//System.out.println("Rows = " + CVimg.rows() + "  Cols = " + CVimg.cols());
 				
 		if (CVimg != null && !CVimg.empty() && CVimg.rows() != 0 && CVimg.cols() != 0) {  
 				streamActive = true;  return toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage
 		}
 		else
 		{	//System.out.println("No image grabbed, making a blank image");
-			CVimg = new Mat(rows, cols, 16, new Scalar(110,110,110));
+			CVimg = new Mat(vidRows, cols, 16, new Scalar(110,110,110));
 			streamActive = true;
 			return toBufferedImage(CVimg);
 		}
@@ -202,7 +203,7 @@ public class VideoFeed extends JPanel implements Runnable {
 
 
 	 //convert from OpenCV Image container (Mat) to Java image container (Image or BufferedImage)   
-	public static Image toBufferedImage(Mat m){
+	public static BufferedImage toBufferedImage(Mat m){
 	    // Code from http://stackoverflow.com/questions/15670933/opencv-java-load-image-to-gui
 		
 	    // Check if image is grayscale or color
@@ -210,10 +211,10 @@ public class VideoFeed extends JPanel implements Runnable {
 	    if ( m.channels() > 1 ) {       type = BufferedImage.TYPE_3BYTE_BGR;    }
 	    	    
 	    // Transfer bytes from Mat to BufferedImage
-	    int bufferSize = m.channels()*cols*rows;   //m.cols()*m.rows();
+	    int bufferSize = m.channels()*cols*vidRows;   //m.cols()*m.rows();
 	    byte [] b = new byte[bufferSize];
 	    m.get(0,0,b); // get all the pixels
-	    BufferedImage image = new BufferedImage(cols, rows+fpR, type);  //new BufferedImage(m.cols(), m.rows(), type);
+	    BufferedImage image = new BufferedImage(cols, totRows, type);  //new BufferedImage(m.cols(), m.rows(), type);
 	    final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
 	    System.arraycopy(b, 0, targetPixels, 0, b.length);
 	    return image;
@@ -245,7 +246,7 @@ public class VideoFeed extends JPanel implements Runnable {
 		{
 			if(imageRealloc) { //hasn't had time to render last image. Using Thread.sleep() can be dangerous...
 				try { Thread.sleep(25);	} catch (InterruptedException e) {}  return; }
-			img = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
+			img = new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
 			imageRealloc = true;
 		}
 		FrameNum++;
@@ -254,6 +255,7 @@ public class VideoFeed extends JPanel implements Runnable {
 		updateStatus();  //just for testing
 		speedGauge.updateValue(airSpd);
 		altGauge.updateValue(altitude);
+		compassGauge.updateValue(heading++);
 						
 		
 		
@@ -264,37 +266,32 @@ public class VideoFeed extends JPanel implements Runnable {
 				
 	}
 	
-	/*This overrides the JFrame (??) function to paint the video frame (stored in class object "img" in the drawing frame */ 
+	/*This overrides the JFrame function to paint the video frame (stored in class object "img" in the drawing frame */ 
     @Override
 	public void paintComponent(Graphics g) {
 
-    	
     	if(img != null)
     	{
         	//create a graphics object from the img, which will be edited -> this allows the edited image to be saved
-	    	Graphics temp = img.getGraphics();
-	
-	    	if(temp == null) System.out.print("null");
-			
-	    	
-			speedGauge.draw((Graphics2D)temp);
-			altGauge.draw((Graphics2D)temp);
-			compassGauge.draw((Graphics2D)temp);
-			
-			temp.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
-			
-			
+    		Graphics2D modifiedFrame = img.createGraphics();
+  	
+			speedGauge.draw(modifiedFrame);
+			altGauge.draw(modifiedFrame);
+			compassGauge.draw(modifiedFrame);
+			modifiedFrame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
+
+		
 			
 			if(isDropped)
 			{
-				temp.setColor(Color.GREEN);
-				temp.drawString("Payload Dropped", cols - 200, rows + 30);
-				temp.drawString("Height At Drop = " + (int)altAtDrop + " ft", cols - 200, rows + 60);
+				modifiedFrame.setColor(Color.GREEN);
+				modifiedFrame.drawString("Payload Dropped", cols - 200, vidRows + 30);
+				modifiedFrame.drawString("Height At Drop = " + (int)altAtDrop + " ft", cols - 200, vidRows + 60);
 			}
 			else
 			{
-				temp.setColor(Color.RED);
-				temp.drawString("Payload Not Dropped", cols - 200, rows + 30); 			
+				modifiedFrame.setColor(Color.RED);
+				modifiedFrame.drawString("Payload Not Dropped", cols - 200, vidRows + 30); 			
 			}
 			
 			if(FrameNum % 5 == 0)
@@ -303,18 +300,15 @@ public class VideoFeed extends JPanel implements Runnable {
 				frameRate = 5.0*1000.0/(System.currentTimeMillis()-time);
 				time = curTime;
 			}
-			temp.setColor(Color.GREEN);
-			temp.drawString("FR: " + (int)frameRate, 5, 20);
+			modifiedFrame.setColor(Color.GREEN);
+			modifiedFrame.drawString("FR: " + (int)frameRate, 5, 20);
 
-			
-			
-			
-			doRecording(temp);
+		
+			doRecording(modifiedFrame);
 					
 						  
-			//drawHorizon((Graphics2D)temp);
+			//drawHorizon(modifiedFrame);
     	}
-    	
     	
     	
 		//draw the image to the screen
@@ -324,7 +318,7 @@ public class VideoFeed extends JPanel implements Runnable {
 
 	}
 	
-	int maxFrames = 100;  //TEMPORARY for testing to ensure it doesn't record a crazy amount of frames
+	int maxFrames = 10000;  //TEMPORARY for testing to ensure it doesn't record a crazy amount of frames
     private void doRecording(Graphics temp)
     {
     	//check whether to save video		  
@@ -335,13 +329,20 @@ public class VideoFeed extends JPanel implements Runnable {
 			
 			//write recording status (already have font loaded)
 			temp.setColor(Color.RED);
-			temp.drawString("RECORDING", cols - 200, rows + 150); 
+			temp.drawString("RECORDING", cols - 200, totRows - 20); 
 		
 		}
 		else if(currentRecordingFN == maxFrames)
 		{ 	currentRecordingFN++;  toggleRecordingStatus();			}
     }
 
+    
+    
+    
+    
+   
+    
+    
     
     
     private void saveFrame(){
@@ -485,7 +486,7 @@ public class VideoFeed extends JPanel implements Runnable {
 	
 
 	//some constants for the drawHorizon Function
-	Point origin = new Point(cols/2, rows/2);
+	Point origin = new Point(cols/2, vidRows/2);
 	private final static int r = (cols-100)/2;  //radius of line
 	private final static int verticalOffset = 100;
 	private void drawHorizon(Graphics2D g){		//let 0 degrees be neutral, and -45 degrees be /  and 45 degrees be \
