@@ -39,8 +39,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	private boolean connected = false;
     private InputStream input;
     private OutputStream output;
-    private static String COMMAND_MODE_CHAR = "+", A = "A", T = "T", C = "C", N = "N", CR = "\r", COMMAND_MODE_OK = "OK\r";
-    private static int TIMEOUT_ENTER_COMMAND_MODE = 1500;
     boolean inBypassMode = false;
     
 	final static int timeout = 2000;
@@ -221,6 +219,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     
     
     /* These next two functions are never used, but are left as a reference.  They can be easily accomplished with XCTU
+    private static String COMMAND_MODE_CHAR = "+", A = "A", T = "T", C = "C", N = "N", CR = "\r", COMMAND_MODE_OK = "OK\r";
+    private static int TIMEOUT_ENTER_COMMAND_MODE = 1500; 
+    
     private boolean enterCommandMode()  {
 		
 		// Enter in AT command mode (send '+++'). The process waits 1,5 seconds for the 'OK\n'.

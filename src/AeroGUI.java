@@ -15,7 +15,7 @@ public class AeroGUI {
 	private static MainWindow main;
 	private JFrame frame;
 	
-	
+
 
 	/** MAIN - Launches the application.	 */
 	public static void main(String[] args) {

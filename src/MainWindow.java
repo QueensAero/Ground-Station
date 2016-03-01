@@ -49,13 +49,11 @@ public class MainWindow extends JPanel implements PacketListener {
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
-	private JTextField servoControlTextBox;
 	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblAltAtDrop; //labels to display the values
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
 	long connectTime;
 	boolean btnsEnabled = false;
-	boolean packageDropped = false; //status of the drop
 	
 	//constructor
 	public MainWindow (SerialCommunicator sc) {
@@ -65,28 +63,12 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 	}
 	
-	/*
-	public void onShutDown(){ 
-	    	
-		//need to close the text output streams for program to terminate properly
-		closeOutputStream();
-    	
-    
-	}
-	
-	private void closeOutputStream(){
-		this.console.close();
-    	this.dataLogger.close();
-    	this.planeMessageConsole.close();  
 		
-	}*/
-	
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
-		servoControlTextBox.setEditable(val);
 		btnEnterBypass.setEnabled(val);
 		btnsEnabled = val;
 	}
@@ -112,25 +94,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 			
 		/* ACTION LISTENERS */	
-			//when type a char into box (this is treated like a button)
-			servoControlTextBox.addKeyListener(new KeyAdapter() {
-				public void keyPressed(KeyEvent e) {
-					char val = e.getKeyChar();
-					if (validChar(val)) {
-						planeMessageConsole.println("Key sent: " + val);
-						serialComm.write(val);
-						if (val == 'P') {
-							dropPackage();
-						}
-					}
-					servoControlTextBox.setText("");
-					
-					//add response to this!!
-				}
-			});
 			
-			
-			
+				
 			//when 'Clear' pressed.  Clears the console and plane messages window 
 			btnClearData.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
@@ -242,12 +207,7 @@ public class MainWindow extends JPanel implements PacketListener {
 					dropPackage();  //set's flags, prints current time and altitude
 				}
 			});
-			
-		
-			
-			
-			
-		
+				
 			
 			//when "reset sensor' pressed
 			btnSensorReset.addActionListener(new ActionListener() {
@@ -292,37 +252,42 @@ public class MainWindow extends JPanel implements PacketListener {
 	private void dropPackage() {
 		planeMessageConsole.println("Drop package sent.");
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
-		System.out.println(time + "s: Package dropped at: "+lblAlt.getText());
+		System.out.println(time + "s: Package dropped at: "+lblAlt.getText() + " ft");
 		lblAltAtDrop.setText(lblAlt.getText());
+		videoFeed.changeDropStatus(true);	
 		
-		packageDropped = true; //flag variable
 	}
 	
 	
 	//mess of a function intializing the layout of the GUI
 	private void initializeComponents() {
 		
-		/*general idea is that GridLayout is overriding structure:  two columns,
-		* Next each of those column can have panels within them with a grid layout. Ie. left side (called panel) has 5 columns
+		/*general idea is that GridLayout is overriding structure:  two columns, each of the same size (as required for GridLayout
+		* Next each of those column can have panels within them with a grid layout. Ie. left side (called leftPanel) has 5 columns
 		* Right side 
 		*/
-		
-		
-		this.setLayout(new GridLayout(0, 2, 0, 0));
+				
+		this.setLayout(new GridLayout(0, 2, 0, 0));  //set overall layout
 
 		
-		JPanel panel = new JPanel();
-		panel.setLayout(new GridLayout(5, 1, 0, 0));  //changed from 4 rows to 5 rows, to move dataLogger to left side
+		JPanel leftPanel = new JPanel();
+		//leftPanel.setLayout(new GridLayout(4, 1, 0, 0));  //changed from 4 rows to 5 rows, to move dataLogger to left side
+		leftPanel.setLayout(new GridBagLayout());
+		
 		
 		//Top panel eventually has the data control panel &  commPortControl panel added to it.  This is top left 2 panels
-		JPanel topPanel = new JPanel();
-		topPanel.setLayout(new GridLayout(2, 1, 0, 0));
+		//JPanel topPanel = new JPanel();
+		//topPanel.setLayout(new GridLayout(2, 1, 0, 0));
 		
+		//this is used to size the buttons panels to minimum possible size (when adding to leftPanel weight will be 0)
+		JPanel buttonsPanels = new JPanel();
+		buttonsPanels.setLayout(new GridLayout(3, 1, 0, 0));
+
 		
 		//data control panel. Top left panel containing curent roll/spd/pitch/alt
-		JPanel dataControlPanel = new JPanel();
-		dataControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
-		dataControlPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		JPanel dataPanel = new JPanel();
+		dataPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
+		dataPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
 		JLabel roll, pitch, speed, alt, altAtDrop;
 		roll = new JLabel("Roll:");
 		pitch = new JLabel("Pitch:");
@@ -342,16 +307,18 @@ public class MainWindow extends JPanel implements PacketListener {
 		lblAlt.setForeground(Color.GREEN);
 		lblAltAtDrop.setForeground(Color.GREEN);
 		
-		dataControlPanel.add(roll);
-		dataControlPanel.add(lblRoll);
-		dataControlPanel.add(pitch);
-		dataControlPanel.add(lblPitch);
-		dataControlPanel.add(speed);
-		dataControlPanel.add(lblSpeed);
-		dataControlPanel.add(alt);
-		dataControlPanel.add(lblAlt);
-		dataControlPanel.add(altAtDrop);
-		dataControlPanel.add(lblAltAtDrop);
+		dataPanel.add(roll);
+		dataPanel.add(lblRoll);
+		dataPanel.add(pitch);
+		dataPanel.add(lblPitch);
+		dataPanel.add(speed);
+		dataPanel.add(lblSpeed);
+		dataPanel.add(alt);
+		dataPanel.add(lblAlt);
+		dataPanel.add(altAtDrop);
+		dataPanel.add(lblAltAtDrop);
+		
+		
 		
 		
 		//Panel containing connect/disconnect/refresh buttons for connecting to Comm Port
@@ -362,8 +329,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		updateCommPortSelector();
 		commPortControlPanel.add(commPortSelector);
 
-		topPanel.add(dataControlPanel);
-		topPanel.add(commPortControlPanel);
+		//topPanel.add(dataPanel);
+		//topPanel.add(commPortControlPanel);
 
 		btnRefresh = new JButton("Refresh");
 		commPortControlPanel.add(btnRefresh);
@@ -373,19 +340,14 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnClearData = new JButton("Clear");
 		commPortControlPanel.add(btnClearData);
+		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+
 		
 		
-		
-		
-		//Servo control panel.  This has two rows -> the servo buttons panel & servo text panel 
-		JPanel servoControlPanel = new JPanel();
-		servoControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Controls"));
-		servoControlPanel.setLayout(new GridLayout(0, 2, 0, 0));
-		
-		//servo button panel, subpanel in the servoControlPanel
+		//servo button panel
 		JPanel servoButtonPanel = new JPanel();
+		servoButtonPanel.setBorder(new TitledBorder(new EtchedBorder(), "Control Buttons"));
 		servoButtonPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		servoControlPanel.add(servoButtonPanel);
 		
 		btnEnable = new JButton("Enable/Disable Resets");
 		servoButtonPanel.add(btnEnable);
@@ -411,18 +373,10 @@ public class MainWindow extends JPanel implements PacketListener {
 		servoButtonPanel.add(btnStartRecording);
 		
 		
-		//servo text panel. Subpanel in servo Control panel, has the label for the user enter char button
-		JPanel servoTextPanel = new JPanel();
-		servoControlPanel.add(servoTextPanel);
-		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
-		servoControlTextBox = new JTextField();
-		servoTextPanel.add(servoControlTextBox);
-		servoControlTextBox.setColumns(10);
-		servoTextPanel.add(new JLabel("Valid Chars are: P (drop), a (cam left), d (cam right), x (cam center)"));
-
-		
-		
-		
+		//Condense above three jpanels into the buttons panel
+		buttonsPanels.add(dataPanel);
+		buttonsPanels.add(commPortControlPanel);
+		buttonsPanels.add(servoButtonPanel);
 		
 		
 		//Panel containing the plane messages.  This is above Console panel
@@ -460,26 +414,35 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
 		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
+		dataLogger.println("TIME\t\tROLL\t\tPITCH\t\tALT\t\tSPEED");
+
+			
+		//
+		GridBagConstraints c = new GridBagConstraints(); //constraints for the overall grid (I think)
+		c.gridx = 0;
+		c.gridy = GridBagConstraints.RELATIVE;
+		c.weightx = 1;
+		c.weighty = 0;
+		c.fill = GridBagConstraints.BOTH;
 		
-		
-		
-	
 		
 		//Add the sub JPanels to the LHS JPanel
-		panel.add(topPanel);
-		panel.add(servoControlPanel);
-		panel.add(planeMessagePanel);
-		panel.add(consolePanel);
-		panel.add(logPanel);  //panel_1.add(logPanel, c);
+		//leftPanel.add(dataPanel);
+		//leftPanel.add(commPortControlPanel);
+		//leftPanel.add(servoControlPanel);
+		leftPanel.add(buttonsPanels,c);
+		c.weighty = 1;
+		leftPanel.add(planeMessagePanel,c);
+		leftPanel.add(consolePanel,c);
+		leftPanel.add(logPanel,c);  //panel_1.add(logPanel, c);
 		
 		
-		dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
 
 		
 		
 		//RIGHT HAND SIDE
-		JPanel right_panel = new JPanel();
-		right_panel.setLayout(new GridBagLayout());  //changed from 4 rows to 5 rows, to move dataLogger to left side
+		JPanel rightPanel = new JPanel();
+		rightPanel.setLayout(new GridBagLayout());  //changed from 4 rows to 5 rows, to move dataLogger to left side
 		
 		//declare videoFeed class
 		videoFeed = new VideoFeed();
@@ -494,37 +457,34 @@ public class MainWindow extends JPanel implements PacketListener {
 		}
 		int totalVidHeight = videoH + fpHeight;
 		
-		//declare jpanel on right side, which contains the videofeed
+		
+		//create videofeed jpanel
 		JPanel videoFeedArea = new JPanel();
-		//videoFeedArea.setLayout(new FlowLayout());
-		//videoFeedArea.setBorder(new TitledBorder(new EtchedBorder(), "Video Feed"));
 		videoFeedArea.setMinimumSize(new Dimension(videoW, totalVidHeight));
 		videoFeedArea.add(videoFeed);
 		
 		
-		//create target jpanel (has rings)
+		//create target jpanel on right side (this has the rings)
 		Targeter targeter = new Targeter();
 		JPanel targeterPanel = new JPanel();
-		//targeterPanel.setLayout(new BorderLayout());
-		//targeterPanel.setBorder(new TitledBorder(new EtchedBorder(), "Targeter"));
 		targeterPanel.setMinimumSize(new Dimension(targeter.getCols(), targeter.getRows()));
 		targeterPanel.add(targeter);
 		
-		
-		GridBagConstraints c = new GridBagConstraints(); //constraints for the overall grid (I think)
-		c.gridx = 0;
-		c.gridy = 0;
-		c.anchor = GridBagConstraints.PAGE_START;
+		//define constraints for adding JPanels to the right side
+		GridBagConstraints rightPanelC = new GridBagConstraints(); //constraints for the overall grid (I think)
+		rightPanelC.gridx = 0;
+		rightPanelC.gridy = 0;
+		rightPanelC.anchor = GridBagConstraints.PAGE_START;
 		
 		//add subpanels to right sdie
-		right_panel.add(videoFeedArea,c);
-		c.gridy = 1;
-		right_panel.add(targeter,c);
+		rightPanel.add(videoFeedArea,rightPanelC);
+		rightPanelC.gridy = 1;
+		rightPanel.add(targeter,rightPanelC);
 
 		
-		
-		this.add(panel);
-		this.add(right_panel);
+		//add the left and right panel to overal JPanel (this class extends JPanel)
+		this.add(leftPanel);
+		this.add(rightPanel);
 	}
 	
 	//called from SerialCommunicator?
@@ -539,14 +499,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		analyzePacket(packet);
 	}
 	
-	//does checking for the character entered into GUI - checks there is an associated command
-	private boolean validChar (char ch) {
-		if (ch == 'P' || ch == 'a' || ch == 'd'|| ch == 'x') {
-			return true;
-		}  
-		return false;
-	}
-	
+		
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
@@ -566,10 +519,10 @@ public class MainWindow extends JPanel implements PacketListener {
 			lblPitch.setText(""+dblArr[2]);
 			lblAlt.setText(""+dblArr[3]);
 			lblSpeed.setText(""+dblArr[4]);
-			dataLogger.println(time + "\t" + dblArr[1] + "\t" + dblArr[2] + "\t" + dblArr[3] + "\t" + dblArr[4]);
+			dataLogger.println(time + "\t\t" + dblArr[1] + "\t\t" + dblArr[2] + "\t\t" + dblArr[3] + "\t\t" + dblArr[4]);
 			
 			//Update data in VideoFeed Class
-			videoFeed.updateValues(dblArr[1], dblArr[2], dblArr[3], dblArr[4], packageDropped);
+			videoFeed.updateValues(dblArr[1], dblArr[2], dblArr[3], dblArr[4]);
 			
 		}
 		else if (str.substring(0, 1).equals("s")) {

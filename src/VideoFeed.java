@@ -97,8 +97,8 @@ public class VideoFeed extends JPanel implements Runnable {
 	private double frameRate = 0;
 	
 	
-	//private int compassDiameter = targetAreaRows-50;
-
+	private ImageWriter jpgWriter;
+	private ImageWriteParam jpgWriteParam;
 	
 	
 	
@@ -144,6 +144,12 @@ public class VideoFeed extends JPanel implements Runnable {
 			System.out.print("gauge init error");
 
 		}
+		 
+		//define image writing settings
+		jpgWriter = ImageIO.getImageWritersByFormatName("jpg").next();
+		jpgWriteParam = jpgWriter.getDefaultWriteParam();
+		jpgWriteParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+		jpgWriteParam.setCompressionQuality(0.8f);
 		
 		
 		//set the size of the painting space
@@ -338,13 +344,6 @@ public class VideoFeed extends JPanel implements Runnable {
 
     
     
-    
-    
-   
-    
-    
-    
-    
     private void saveFrame(){
     	
     		//can change wher you want to save to
@@ -356,12 +355,7 @@ public class VideoFeed extends JPanel implements Runnable {
 				ImageIO.write((RenderedImage) img, "jpg", outputfile);
 			} catch (IOException e1) { System.out.println("Error Saving");}
 			 */
-			//http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java
-			
-			ImageWriter jpgWriter = ImageIO.getImageWritersByFormatName("jpg").next();
-			ImageWriteParam jpgWriteParam = jpgWriter.getDefaultWriteParam();
-			jpgWriteParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			jpgWriteParam.setCompressionQuality(0.8f);
+			//http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java			
 
 			ImageOutputStream outputStream;
 			try {
@@ -381,8 +375,6 @@ public class VideoFeed extends JPanel implements Runnable {
 			} catch (IOException e) {
 				System.out.print("Failed to save image");
 			}
-			
-			jpgWriter.dispose();						
 		
     }
     
@@ -442,16 +434,20 @@ public class VideoFeed extends JPanel implements Runnable {
 	public boolean getRecordStatus() {  return recordingVideo;  }
 	
 	//if too many values, might want to send as enum/struct type? does java have that
-	public void updateValues(double roll, double pitch, double alt, double airspeed, boolean dropped)  //add more as necessary (ie. GPS).
+	public void updateValues(double roll, double pitch, double alt, double airspeed)  //add more as necessary (ie. GPS).
 	{
 		rollAng = roll;
 		airSpd = airspeed;
 		altitude = alt;
-		pitchAng = pitch;
-		if(isDropped != dropped)
-			altAtDrop = alt;
-		isDropped = dropped;
+		pitchAng = pitch;		
+	}
+	
+	public void changeDropStatus(boolean dropped)  //this function will really only ever be called to set it to 'true'
+	{
+		if(dropped)
+			altAtDrop = altitude; //whatever the last received altitude was. This is close enough
 		
+		isDropped = dropped;
 	}
 	
 	
