@@ -391,26 +391,14 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             				break;
             		}	
             		else
-            		{
-                		System.out.println("Received test character");
-
-            		}
+            			System.out.println("Received test character");
+            		
             			
             	}
             	if(newLine)
             		System.out.println("");      	  
             	 
-            	 /*
-            	char c;
-            	while((c = (char) input.read()) > -1) // read() returns -1 when buffer is empty
-            	{	
-            		if(
-            			
-            		received.append(c);
-                	System.out.print("appended " + (char)input.read() + " ");
-            	}
-            	*/
-            	
+            	            	
             	
                 String str;
             	String temp = received.toString();
@@ -423,7 +411,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             			packetReceived(str);
             		}
             		else {
-            			temp = temp.substring(temp.indexOf("*"));
+            			temp = temp.substring(temp.indexOf("*"));  //this assumes that the received values from * onwards are part of a new, valid packet
             			received.delete(0, received.length());
             			received.insert(0, temp);
             			invalidPacketReceived(temp);

@@ -41,6 +41,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 public class MainWindow extends JPanel implements PacketListener {
 	
 	public VideoFeed videoFeed;
+	public Targeter targeter;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData;
@@ -49,7 +50,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
-	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblAltAtDrop; //labels to display the values
+	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblLatt, lblLong, lblHead, lblHour, lblMin, lblSec, lblMs, lblAltAtDrop; //labels to display the values
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
 	long connectTime;
@@ -100,7 +101,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			btnClearData.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					dataLoggerTextArea.setText("");
-					dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
+					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 					planeMessageTextArea.setText("");
 					consoleTextArea.setText("");
 				}
@@ -215,7 +216,7 @@ public class MainWindow extends JPanel implements PacketListener {
 					serialComm.write('r');
 					planeMessageConsole.println("Reset sent.");
 					dataLoggerTextArea.setText("");
-					dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");
+					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 				}
 			});
 			
@@ -225,7 +226,7 @@ public class MainWindow extends JPanel implements PacketListener {
 					serialComm.write('q');  //send the command to plane
 					planeMessageConsole.println("Restart sent."); 
 					dataLoggerTextArea.setText("");  //delete old text
-					dataLogger.println("TIME\tROLL\tPITCH\tALT\tSPEED");  //reprint information line
+					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 				}
 			});
 			
@@ -255,6 +256,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		System.out.println(time + "s: Package dropped at: "+lblAlt.getText() + " ft");
 		lblAltAtDrop.setText(lblAlt.getText());
 		videoFeed.changeDropStatus(true);	
+		targeter.setDropStatus(true);
 		
 	}
 	
@@ -288,23 +290,46 @@ public class MainWindow extends JPanel implements PacketListener {
 		JPanel dataPanel = new JPanel();
 		dataPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
 		dataPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		JLabel roll, pitch, speed, alt, altAtDrop;
+		JLabel roll, pitch, speed, alt, latt, longit, head, hour, min, sec, ms, altAtDrop;
 		roll = new JLabel("Roll:");
 		pitch = new JLabel("Pitch:");
 		speed = new JLabel("Speed:");
 		alt = new JLabel("Alt:");
+		latt = new JLabel("\nLatt:");
+		longit = new JLabel("Long:");
+		head = new JLabel("Heading:");
+		hour = new JLabel("Time: ");
+		min = new JLabel(":");
+		sec = new JLabel(":");
+		ms = new JLabel(".");
 		altAtDrop = new JLabel("Alt at Drop:");
 
+		//If wanted to clean this up make an array of JLabels...
 		lblRoll = new JLabel("");
 		lblPitch = new JLabel("");
 		lblSpeed = new JLabel("");
 		lblAlt = new JLabel("");
+		lblLatt = new JLabel("");
+		lblLong = new JLabel("");
+		lblHead = new JLabel("");
+		lblHour = new JLabel("");
+		lblMin = new JLabel("");
+		lblSec = new JLabel("");
+		lblMs = new JLabel("");
 		lblAltAtDrop = new JLabel("");
 		
 		lblRoll.setForeground(Color.GREEN);
 		lblPitch.setForeground(Color.GREEN);
 		lblSpeed.setForeground(Color.GREEN);
 		lblAlt.setForeground(Color.GREEN);
+		
+		lblLatt.setForeground(Color.GREEN);
+		lblLong.setForeground(Color.GREEN);
+		lblHead.setForeground(Color.GREEN);
+		lblHour.setForeground(Color.GREEN);
+		lblMin.setForeground(Color.GREEN);
+		lblSec.setForeground(Color.GREEN);
+		lblMs.setForeground(Color.GREEN);
 		lblAltAtDrop.setForeground(Color.GREEN);
 		
 		dataPanel.add(roll);
@@ -315,6 +340,21 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataPanel.add(lblSpeed);
 		dataPanel.add(alt);
 		dataPanel.add(lblAlt);
+		
+		dataPanel.add(latt);
+		dataPanel.add(lblLatt);
+		dataPanel.add(longit);
+		dataPanel.add(lblLong);
+		dataPanel.add(head);
+		dataPanel.add(lblHead);
+		dataPanel.add(hour);
+		dataPanel.add(lblHour);
+		dataPanel.add(min);
+		dataPanel.add(lblMin);
+		dataPanel.add(sec);
+		dataPanel.add(lblSec);
+		dataPanel.add(ms);
+		dataPanel.add(lblMs);		
 		dataPanel.add(altAtDrop);
 		dataPanel.add(lblAltAtDrop);
 		
@@ -414,7 +454,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
 		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
-		dataLogger.println("TIME\t\tROLL\t\tPITCH\t\tALT\t\tSPEED");
+		dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 
 			
 		//
@@ -465,7 +505,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		
 		//create target jpanel on right side (this has the rings)
-		Targeter targeter = new Targeter();
+		targeter = new Targeter();
 		JPanel targeterPanel = new JPanel();
 		targeterPanel.setMinimumSize(new Dimension(targeter.getCols(), targeter.getRows()));
 		targeterPanel.add(targeter);
@@ -499,30 +539,62 @@ public class MainWindow extends JPanel implements PacketListener {
 		analyzePacket(packet);
 	}
 	
-		
+	//*p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%hour%minute%second%ms&
+	
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		if (str.substring(0, 1).equals("p")) {
 			String [] strArr = str.split("%");
-			double [] dblArr = new double [5];
+			double [] dblArr = new double [7]; //was 5 before, added LAT/Long/Heading/
+			int [] timeArr = new int[4];  //H, M, S, MS
 			try {
-				for (int i = 1; i < 5; i++) {
-					dblArr[i] = Double.parseDouble(strArr[i]);
-					dblArr[i] *= 100;
-					dblArr[i] = Math.round(dblArr[i]) / 100.0;
+				for (int i = 1; i < 8; i++)  //start at 1 - since the first string is *p 
+				{	dblArr[i-1] = Double.parseDouble(strArr[i]);
+					
+					//ensure no extra trailing 0 decimal places are displayed (prints nicer)
+					if(i != 5 && i != 6)  //round to 2 decimal places
+						dblArr[i-1] = Math.round(100*dblArr[i-1])/100.0;
+					else  //round to 4 decimal places (latt and long)
+						dblArr[i-1] = Math.round(10000*dblArr[i-1])/10000.0;									
+				
 				}
+				
+				for (int j = 8; j < 12; j++)
+					timeArr[j-8] = Integer.getInteger(strArr[j]);
+				
+				
+				
 			} catch (Exception e) {
 				System.out.println(time + "s: Encountered an invalid packet: \"" + str + "\"");
 			}
-			lblRoll.setText(""+dblArr[1]);
-			lblPitch.setText(""+dblArr[2]);
-			lblAlt.setText(""+dblArr[3]);
-			lblSpeed.setText(""+dblArr[4]);
-			dataLogger.println(time + "\t\t" + dblArr[1] + "\t\t" + dblArr[2] + "\t\t" + dblArr[3] + "\t\t" + dblArr[4]);
 			
-			//Update data in VideoFeed Class
-			videoFeed.updateValues(dblArr[1], dblArr[2], dblArr[3], dblArr[4]);
+			dblArr[3] *= 0.514444;  //CONVERT from knots TO m/s
+			dblArr[5] *= -1;		//acount for the fact it should have 'W' attached (western hemisphere == negative longitude)
+			
+			//print to status area (top left)
+			lblRoll.setText(""+dblArr[0]);  
+			lblPitch.setText(""+dblArr[1]);
+			lblAlt.setText(""+dblArr[2]);
+			lblSpeed.setText(""+dblArr[3]);
+			lblLatt.setText(""+dblArr[4]);  
+			lblLong.setText(""+dblArr[5]);
+			lblHead.setText(""+dblArr[6]);  
+			lblHour.setText(""+timeArr[0]);
+			lblMin.setText(""+timeArr[1]);
+			lblSec.setText(""+timeArr[2]);
+			lblMs.setText(""+timeArr[3]);
+			
+			//print to logging screen
+			dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
+									+ "," + timeArr[0] + ":" + timeArr[1] + ":" + timeArr[2] + "." + timeArr[3]  );
+			
+			//Update data in VideoFeed Class (it separately logs, 
+			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1], timeArr[2], timeArr[3]);
+						
+			//update targeting stuff
+			targeter.updateGPSData(dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1], timeArr[2], timeArr[3]);
+
 			
 		}
 		else if (str.substring(0, 1).equals("s")) {

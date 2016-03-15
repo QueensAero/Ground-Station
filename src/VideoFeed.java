@@ -6,6 +6,8 @@ import java.awt.FontFormatException;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
@@ -25,6 +27,7 @@ import javax.imageio.ImageWriter;
 import javax.imageio.stream.FileImageOutputStream;
 import javax.imageio.stream.ImageOutputStream;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Core;
@@ -65,7 +68,7 @@ import java.nio.file.StandardOpenOption;
  */
 
 
-public class VideoFeed extends JPanel implements Runnable {
+public class VideoFeed extends JPanel{
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
 	private final static int vidRows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
@@ -83,16 +86,17 @@ public class VideoFeed extends JPanel implements Runnable {
 	SimpleDateFormat sdf;
 		
 	//thread variables
-	Thread VFThread;
-	private volatile boolean endThread = false;
-
+	Timer threadTimer; 
+	
 	//Buffered Image container
 	private BufferedImage img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
 
 	//state variables (containing information about current state of plane)
 	private double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
+	private double lattitude, longitude;
+	private int hour, second, minute, millisec;
 	boolean isDropped = false;  double altAtDrop = 0, heading = 0; //whether the payload has been dropped
-	private boolean recordingVideo = false; boolean streamActive = false, imageRealloc = false;
+	private boolean recordingVideo = false; boolean streamActive = false;
 	private int currentRecordingFN = 0;
 	private double frameRate = 0;
 	
@@ -156,12 +160,16 @@ public class VideoFeed extends JPanel implements Runnable {
 		Dimension size = new Dimension(cols, totRows); 
 		this.setPreferredSize(size);
 				
-				
 		
-		//Thread declarations
-		VFThread = new Thread(this, "Video Feed Thread");
-		time = System.currentTimeMillis();
-		VFThread.start();
+		 ActionListener updateStream = new ActionListener() {
+		      public void actionPerformed(ActionEvent evt) {
+		          update();
+		      }
+		  };
+		
+		threadTimer = new Timer(33, updateStream);  //33 ms ~30FPS
+		threadTimer.start(); //note: by default Coalescing is on, meaning that if won't queue events
+	
 	}
 	
 	public int getVideoSrc(){	return videoSource;	}
@@ -188,24 +196,27 @@ public class VideoFeed extends JPanel implements Runnable {
 		
 	}
 	
-	private BufferedImage getImage(){
+	private BufferedImage getImageCV(){
 		
-		cap.read(CVimg);  //read a new frame -> this also updates the matrix combinedImgCV since CVimg is a subset of that
+		boolean sucess = false;
+		
+		if(cap.isOpened() )
+			sucess = cap.read(CVimg);  //read a new frame -> this also updates the matrix combinedImgCV since CVimg is a subset of that
 
 				
-		if (CVimg != null && !CVimg.empty() && CVimg.rows() != 0 && CVimg.cols() != 0) {  
-				streamActive = true;  return toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage
+		if (sucess && CVimg != null && !CVimg.empty() && CVimg.rows() != 0 && CVimg.cols() != 0) {  
+				streamActive = true; 
+				//System.out.print("test");
+				return toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage				
 		}
 		else
 		{	//System.out.println("No image grabbed, making a blank image");
-			CVimg = new Mat(vidRows, cols, 16, new Scalar(110,110,110));
-			streamActive = true;
-			return toBufferedImage(CVimg);
+			return new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
 		}
 	}
 	
 	//function to end the video capture and display thread 
-	public void endCapture(){	endThread = true;	cap.release();}
+	public void endCapture(){	threadTimer.stop();	cap.release();}
 
 
 	 //convert from OpenCV Image container (Mat) to Java image container (Image or BufferedImage)   
@@ -227,34 +238,24 @@ public class VideoFeed extends JPanel implements Runnable {
 	}
 	
 	/******************openCV DEPENDANCE ENDS **********************************/
-
-	/* Thread Run Function -> currently just calls the update function */
-	public void run()
-	{
-		
-    	while(!endThread){
-    		update();  //continuously call update function
-    	}	 
-	    
-    	System.out.println("Video Capture Thread Ended" );
-	}
 	
-
+	
 	/* Update Function -> grabs frame, converts to BufferedImage, and calls repaint  */
 	private void update() {
 		  
 		streamActive = false; //will be set to TRUE if function below is sucessful. 
 		
-		//OpenCV Dependance
-		img = getImage();  //can comment this out, will still display gauges		
+		//OpenCV Dependance (can comment out and below should be fine, though without video stream)
+		img = getImageCV(); boolean usingCV = true;
 		
-		if(img == null || !streamActive)  //failed to get video, still want to display everything else
-		{
-			if(imageRealloc) { //hasn't had time to render last image. Using Thread.sleep() can be dangerous...
-				try { Thread.sleep(25);	} catch (InterruptedException e) {}  return; }
-			img = new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
-			imageRealloc = true;
-		}
+		if(!usingCV)
+			img = getImageNonCV();
+		
+		//if(!streamActive)
+		//{	try { Thread.sleep(34);	} catch (InterruptedException e) {} 
+		//}		
+	
+		
 		FrameNum++;
 		  
 	
@@ -264,12 +265,9 @@ public class VideoFeed extends JPanel implements Runnable {
 		compassGauge.updateValue(heading++);
 						
 		
-		
 		//repaint the JFrame (paintComponent will be called)
-		this.repaint();
-		
+		this.repaint();	
 			
-				
 	}
 	
 	/*This overrides the JFrame function to paint the video frame (stored in class object "img" in the drawing frame */ 
@@ -314,17 +312,20 @@ public class VideoFeed extends JPanel implements Runnable {
 					
 						  
 			//drawHorizon(modifiedFrame);
+			
+			//draw the image to the screen
+			g.drawImage(img, 0, 0, null);
     	}
-    	
-    	
-		//draw the image to the screen
-		g.drawImage(img, 0, 0, null);
-		
-		imageRealloc = false;
+    	else
+    		System.out.println("No image to render");    	
 
 	}
+    
+    private BufferedImage getImageNonCV(){
+	 	return  new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR); 
+	 } 
 	
-	int maxFrames = 10000;  //TEMPORARY for testing to ensure it doesn't record a crazy amount of frames
+	int maxFrames = 100000;  //@ 30 FPS = ~ 1 hour and @100Kb/frame = 10 GB of frames
     private void doRecording(Graphics temp)
     {
     	//check whether to save video		  
@@ -434,12 +435,21 @@ public class VideoFeed extends JPanel implements Runnable {
 	public boolean getRecordStatus() {  return recordingVideo;  }
 	
 	//if too many values, might want to send as enum/struct type? does java have that
-	public void updateValues(double roll, double pitch, double alt, double airspeed)  //add more as necessary (ie. GPS).
+	public void updateValues(double roll, double pitch, double alt, double airspeed, double latt, double longit, double head, int hr, int sec, int min, int ms)  //add more as necessary (ie. GPS).
 	{
 		rollAng = roll;
 		airSpd = airspeed;
 		altitude = alt;
-		pitchAng = pitch;		
+		pitchAng = pitch;
+		lattitude = latt;
+		longitude = longit;
+		heading = head;
+		hour = hr;
+		second = sec;
+		minute = min;
+		millisec = ms;
+		
+		
 	}
 	
 	public void changeDropStatus(boolean dropped)  //this function will really only ever be called to set it to 'true'
