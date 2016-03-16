@@ -24,13 +24,14 @@ public class GPSPos {
 		this.second = sec;
 		this.milliSecond = ms;
 		heading = heading2MathAngle(direction);
-		convertDeg2UTM(lat, lon); // Updates all utm attributes
+		convertDeg2UTM(decimalDegMin2Degree(lat), decimalDegMin2Degree(lon)); // Updates all utm attributes
+		
 	}
 	
 	/*
 	 * Constructor that accepts position as UTM coordinates.
 	 */
-	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocity, double altitude, double direction)
+	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocity, double altitude, double direction, int sec, int ms)
 	{
 		this.velocity = velocity;
 		this.altitude = altitude;
@@ -39,6 +40,9 @@ public class GPSPos {
 		this.utmLetter = utmLetter;
 		this.utmNorthing = utmNorthing;
 		this.utmEasting = utmEasting;
+		this.second = sec;
+		this.milliSecond = ms;
+
 	}
 	
 	

@@ -52,6 +52,7 @@ public class GPSTargeter {
 	
 	public double getLateralError() { return latError; }
 	public double getTimeToDrop() { return timeToDrop; }
+	public double getDropDistance() { return dropDistance();  }  //assumes updateCurPos has already been called
 	
 	/* 
 	 * Step '1.' in class description:
