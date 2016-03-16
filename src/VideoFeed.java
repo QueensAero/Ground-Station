@@ -94,7 +94,7 @@ public class VideoFeed extends JPanel{
 	//state variables (containing information about current state of plane)
 	private double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
 	private double lattitude, longitude;
-	private int hour, second, minute, millisec;
+	private int  second, millisec;
 	boolean isDropped = false;  double altAtDrop = 0, heading = 0; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false;
 	private int currentRecordingFN = 0;
@@ -235,6 +235,17 @@ public class VideoFeed extends JPanel{
 	    final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
 	    System.arraycopy(b, 0, targetPixels, 0, b.length);
 	    return image;
+	}
+	
+	//in case stream gets lost and can't recover itself during operation. Button on GUI calls this function
+	public void restartVideoStream()
+	{
+		cap.release();  //close it
+		cap = new VideoCapture(videoSource);   //re-open it
+		
+		// Check if video capturing is enabled
+		if (!cap.isOpened()) { System.out.println("Could not re-open video feed.");}
+		
 	}
 	
 	/******************openCV DEPENDANCE ENDS **********************************/
@@ -416,7 +427,7 @@ public class VideoFeed extends JPanel{
 		        	System.err.println("Could not create file: " + logPath);
 			}
 	        
-		        String s = "Frame,time,roll,pitch,airSpeed,altitude\n";
+		        String s = "Frame,time,roll,pitch,airSpeed,altitude, lattitude, longitude, heading, second, milliSec \n";
 		        try {
 		            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
 		        } catch (IOException e) {
@@ -435,7 +446,7 @@ public class VideoFeed extends JPanel{
 	public boolean getRecordStatus() {  return recordingVideo;  }
 	
 	//if too many values, might want to send as enum/struct type? does java have that
-	public void updateValues(double roll, double pitch, double alt, double airspeed, double latt, double longit, double head, int hr, int sec, int min, int ms)  //add more as necessary (ie. GPS).
+	public void updateValues(double roll, double pitch, double alt, double airspeed, double latt, double longit, double head, int sec, int ms)  //add more as necessary (ie. GPS).
 	{
 		rollAng = roll;
 		airSpd = airspeed;
@@ -444,9 +455,7 @@ public class VideoFeed extends JPanel{
 		lattitude = latt;
 		longitude = longit;
 		heading = head;
-		hour = hr;
 		second = sec;
-		minute = min;
 		millisec = ms;
 		
 		
@@ -476,7 +485,8 @@ public class VideoFeed extends JPanel{
 	private void logData() {
 	
 		String t = Long.toString(System.currentTimeMillis() - videoRecStartTime);
-		String s = Integer.toString(currentRecordingFN) + "," + t + "," + rollAng + "," + pitchAng + "," + airSpd + "," + altitude + "\n";
+		String s = Integer.toString(currentRecordingFN) + "," + t + "," + rollAng + "," + pitchAng + "," + airSpd + "," + altitude + "," + lattitude + "," + longitude + 
+										"," + heading + "," + second + "," + millisec + "\n";
 		
 		try {
 			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)

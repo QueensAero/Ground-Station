@@ -9,7 +9,6 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 
 
-import java.nio.Buffer;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 
@@ -33,25 +32,21 @@ public class Targeter extends JPanel {
 
 	
 	//curent GPS information
-	double altitude = 0, speed, lattitude, longitude, heading;  //altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
-	int hour, minute, second, millisec;
+	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitude = 0, longitude = 0, heading = 0;  //altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
+	int  second = 0, millisec = 0;
 	
 	//tracking variables:
 	//note: xDistToTarget is a positive if East, and yDistToTarget is positive if North. These are in ft
 	int xPos = 45,  		//cartesian coordinate in x/y grid. +x = East.  Value in m
-		prevXPos = 30, 	//previous x position (not 1 screen earlier, but 1 GPS data earlier)
-		yPos = 10,  		//cartesian coordinate in x/y grid. +y = North.  Value in m
-		prevYPos = 45;
-	int [] prevXPoints = new int[5];
-	int [] prevYPoints = new int[5];
-	int prevPosIndex = 0, numPrevPoints;
+		yPos = 10;  		//cartesian coordinate in x/y grid. +y = North.  Value in m
 	boolean payloadDropped = false;
 
 	
 	double  lateralError = 35.1553154,	//lateral error assuming optimal drop time (in m)
 			timeToDrop = 13.13;			//estimated time until optimal drop (in seconds)
 	
-	
+	private int TIME_DELAY_MS_BEFORE_DROP = 500;  //constant offset time between sending drop command (on ground) to receiving it and servo rotating to release payload
+	private double FT_TO_METRES = 0.3048;  
 	
 	//target Area Rings & sizing variables
 	private double metersPerPix = 0.5;
@@ -60,11 +55,11 @@ public class Targeter extends JPanel {
     			ringBaseL = cols/2-ringOutRadius, //x coordinate of top left corner
     			ringBaseT = rows/2 -ringOutRadius;  //y coordinate of top left corner
 	
-	//sub tracking class objects
-	//GPSPos baseGPSposition;
-	//GPSPos curGPSPosition;
-	//GPSPos targetPos(....);
-	//GPSTageter GSPTargeting(targetPos);
+	//sub tracking class objects (initialize positions to 0 values. Could instead use some estimate of starting position)
+	GPSPos baseGPSposition = new GPSPos(0,0,0,0,0,0,0);
+	GPSPos curGPSPosition = new GPSPos(0,0,0,0,0,0,0);
+	GPSPos targetPos = new GPSPos(4413.7078, -07629.5106,0,0,0,0,0);   //this is currently a point just behind ILC. NOTE the NEGATIVE on Long component to account for west
+	GPSTargeter GSPTargeting = new GPSTargeter(targetPos);
 	
 	
 	//constructor
@@ -94,7 +89,7 @@ public class Targeter extends JPanel {
 	{
 		//transform baseGPSPos to 'curent' time
 		updateCurGPSPos();   //result will be that the curGPSPosition object contains the most recent location (after accounting for time delays)
-		//GSPTargeting.updateCurPos(curGPSPosition); //GPSposition is last received point from GPS. The object is updated changed when updateGPSData is callsed
+		GSPTargeting.updateCurPos(curGPSPosition); //GPSposition is last received point from GPS. The object is updated changed when updateGPSData is callsed
 		this.repaint();
 		
 	
@@ -173,8 +168,8 @@ public class Targeter extends JPanel {
      			frame.drawString(getRing(lateralError, frame), 10, cols - 25);
      			frame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", 10, cols - 45);  //done after so automatically same font colour
 
-     			 if(altitude < 100)
-     			  	 frame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitude) + " ft)", 10, cols - 5);    
+     			 if(altitudeFt < 100)
+     			  	 frame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitudeFt) + " ft)", 10, cols - 5);    
      			 else if(lateralError < 60)  //otherwise shouldn't drop
       				 frame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", 10, cols - 5);  //done after so automatically same font colour     			     			 
      		}
@@ -183,8 +178,8 @@ public class Targeter extends JPanel {
      			frame.drawString(getRing(lateralError, frame), 10, 40);
      			frame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", 10, 20);  //done after so automatically same font colour
 
-     			 if(altitude < 100)
-     			  	 frame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitude) + " ft)", 10, 60);    
+     			 if(altitudeFt < 100)
+     			  	 frame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitudeFt) + " ft)", 10, 60);    
      			 else if(lateralError < 60)  //otherwise shouldn't drop
       				 frame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", 10, 60);  //done after so automatically same font colour       			      		
      		
@@ -194,63 +189,35 @@ public class Targeter extends JPanel {
      		 
      		 //use coordinates stuff from a targeting class
      		 
-     		 double heading = 35;   //getHeading();
-     		 //double xPos = targeterStartPixX - 300/2;  // targeterStartPixX - getXDistPlane()/metersPerPix;   
-     		 //double yPos = targeterStartPixY - 150/2;  //targeterStartPixY - getYDistPlane()/metersPerPix;
-     		 double angleSkew = 4;   //getSkewAngle();    angle away from target, positive is CCW away (ie. heading to target is 35, proj. heading is 31
-     		
+     	     		
      		drawPoint(frame, (int)(cols/2+xPos/metersPerPix), (int)(rows/2-yPos/metersPerPix), 5);
-     		drawPath(frame); 
+     		//drawPath(frame); 
      		 
-     		 //draw plane (make sure has directionality
-     		 //draw projected drop point (some math required to get angles/trajectory right)
-     		 //write projected lateral error
-     	    	 
+     		    	    	 
      	 }    	
     	
     	
     	
     }
     
-    //problems: when first getting on screen - is it ok to draw to offscreen places (I think yes)
-    private void drawPath(Graphics2D frame)
-    {
-    	if(numPrevPoints > prevXPoints.length)  //need a full 'circular' array to complete function
-    	{	
-    		int index = prevPosIndex, newIndex = prevPosIndex-1;
-	    	
-	    	frame.setColor(Color.GREEN);
-	    	frame.drawLine(xPos, yPos, prevXPoints[index], prevYPoints[index]);  //from current pt to previous point
-	    	
-	    	
-	    	for(int i = 0; i < prevXPoints.length-1; i++)
-	    	{
-	    		if(newIndex < 0)
-	    			newIndex = prevXPoints.length-1;
-	    			
-	    		frame.drawLine(prevXPoints[index], prevYPoints[index], prevXPoints[newIndex], prevYPoints[newIndex]);
-	    		index = newIndex--;
-	    		
-	    	}
-    	}
-    }
+    
     
     private String getRing(double latError, Graphics2D frame)
     {
-    	double ftToMetres = 0.3048;
-    	if(latError < 15*ftToMetres)
+    	
+    	if(latError < 15*FT_TO_METRES)
     	{	frame.setColor(Color.GREEN);	
     		return new String("Proj Ring = "+1);
     	}
-    	else if(latError < 30*ftToMetres)
+    	else if(latError < 30*FT_TO_METRES)
     	{	frame.setColor(Color.CYAN);	
     		return new String("Proj Ring = "+2);
     	}
-    	else if(latError < 45*ftToMetres)
+    	else if(latError < 45*FT_TO_METRES)
     	{	frame.setColor(Color.YELLOW);	
 			return new String("Proj Ring = "+3);
     	}
-    	else if(latError < 60*ftToMetres)
+    	else if(latError < 60*FT_TO_METRES)
     	{	frame.setColor(Color.ORANGE);	
 			return new String("Proj Ring = "+4);
     	}
@@ -278,19 +245,18 @@ public class Targeter extends JPanel {
 	public int getRows() {  return rows; }
 	public int getCols() {  return cols; }
 	
-	public void updateGPSData(double alt, double spd, double Lat, double Long, double headng, int hr, int min, int sec, int ms ){
+	public void updateGPSData(double alt, double spd, double Lat, double Long, double headng, int sec, int ms ){
 
-		altitude = alt;
+		altitudeFt = alt;
+		altitudeMetres = alt*FT_TO_METRES;
 		speed = spd;
 		lattitude = Lat;
 		longitude = Long;
 		heading = headng;
-		hour = hr;
-		minute = min;
 		second = sec;
 		millisec = ms;		
 		
-		//baseGPSposition = new GPSPos(lattitude, longitude, speed, heading, altitude, sec, ms);
+		baseGPSposition = new GPSPos(lattitude, longitude, speed, heading, altitudeMetres, sec, ms);
 		
 		LocalDateTime now = LocalDateTime.now();
 		int msFromGPSCoord = getMsBetween(second, millisec, now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
@@ -301,12 +267,12 @@ public class Targeter extends JPanel {
 	//go from base position (which is delayed from real-time) to current time by assuming constant speed/heading over the differnece in time
 	private void updateCurGPSPos()   //reset will be that the curGPSPosition object contains the most recent location
 	{
-	/*	LocalDateTime now = LocalDateTime.now();
-		int msFromGPSCoord = getMsBetween(baseGPSposition.getSecond(), baseGPSposition.getMillisecond(), now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
-		double curEasting = projectXForward(speed, heading, baseGPSposition.getUTMEasting(), msFromGPSCoord);
-		double curNothing = projectYForward(speed, heading, baseGPSposition.getUTMNorthing(), msFromGPSCoord);
-		curGPSPosition = new GPSPos(curNothing, curEasting, speed, heading, baseGPSposition.getUTMZone(), baseGPSposition.getUTMLetter());
-		*/
+		LocalDateTime now = LocalDateTime.now();
+		int msFromGPSCoord = getMsBetween(baseGPSposition.getSecond(), baseGPSposition.getMilliSecond(), now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
+		double curEasting = projectXForward(speed, heading, baseGPSposition.getUTMEasting(), msFromGPSCoord+TIME_DELAY_MS_BEFORE_DROP); 
+		double curNothing = projectYForward(speed, heading, baseGPSposition.getUTMNorthing(), msFromGPSCoord)+TIME_DELAY_MS_BEFORE_DROP;
+		curGPSPosition = new GPSPos(baseGPSposition.getUTMZone(), baseGPSposition.getUTMLetter(), curNothing, curEasting, speed, altitudeMetres, heading);
+		
 	
 	}
 		
@@ -314,14 +280,14 @@ public class Targeter extends JPanel {
 	double projectXForward(double spd, double heading, double curX, int timeDiffMs)    //0 degrees = North, 90 degrees = East etc. spd in m/s, curX in m 
 	{
 		double angle = headingToMathAngle(heading);
-		return (curX + spd*Math.cos(angle)*timeDiffMs/1000.0);
+		return (curX + spd*Math.cos(angle*Math.PI/180)*timeDiffMs/1000.0);
 
 	}
 	
 	double projectYForward(double spd, double heading, double curY, int timeDiffMs)    //0 degrees = North, 90 degrees = East etc. spd in m/s, curX in m 
 	{
 		double angle = headingToMathAngle(heading);
-		return (curY + spd*Math.sin(angle)*timeDiffMs/1000.0);
+		return (curY + spd*Math.sin(angle*Math.PI/180)*timeDiffMs/1000.0);
 	}
 	
 	double headingToMathAngle(double heading)
@@ -369,7 +335,40 @@ public class Targeter extends JPanel {
 		return baseDegree + baseDegMins/60.0;  //1 degree minute = 1/60 deegrees
 	}
 	
-	//problem: how to set first value without getting to here (will have some dumb boolean variable checking everytime
+	
+	/* Below are functions to save a series of points and display the path. They are untested
+	
+	int	prevXPos = 30, 	//previous x position (not 1 screen earlier, but 1 GPS data earlier)
+		prevYPos = 45;
+	int prevPosIndex = 0, numPrevPoints;
+
+	int [] prevXPoints = new int[5];
+	int [] prevYPoints = new int[5];
+	
+	 //problems: when first getting on screen - is it ok to draw to offscreen places (I think yes)
+    private void drawPath(Graphics2D frame)
+    {
+    	if(numPrevPoints > prevXPoints.length)  //need a full 'circular' array to complete function
+    	{	
+    		int index = prevPosIndex, newIndex = prevPosIndex-1;
+	    	
+	    	frame.setColor(Color.GREEN);
+	    	frame.drawLine(xPos, yPos, prevXPoints[index], prevYPoints[index]);  //from current pt to previous point
+	    	
+	    	
+	    	for(int i = 0; i < prevXPoints.length-1; i++)
+	    	{
+	    		if(newIndex < 0)
+	    			newIndex = prevXPoints.length-1;
+	    			
+	    		frame.drawLine(prevXPoints[index], prevYPoints[index], prevXPoints[newIndex], prevYPoints[newIndex]);
+	    		index = newIndex--;
+	    		
+	    	}
+    	}
+    }
+	 
+	 
 	private void updatePreviousPoints(int newXPt, int newYPt)
 	{	
 		
@@ -382,5 +381,5 @@ public class Targeter extends JPanel {
 		yPos = newYPt;
 		numPrevPoints++;
 		
-	}
+	}*/
 }

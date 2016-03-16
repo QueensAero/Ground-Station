@@ -44,13 +44,13 @@ public class MainWindow extends JPanel implements PacketListener {
 	public Targeter targeter;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
-	private JButton btnEnable, btnSave, btnClearData;
+	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
-	private JButton btnStartRecording, btnEnterBypass;  //button to start/stop recording
+	private JButton btnStartRecording, btnEnterBypass, btnRestartStream;  //button to start/stop recording
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
-	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblLatt, lblLong, lblHead, lblHour, lblMin, lblSec, lblMs, lblAltAtDrop; //labels to display the values
+	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblLatt, lblLong, lblHead, lblSec, lblMs, lblAltAtDrop; //labels to display the values
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
 	long connectTime;
@@ -71,6 +71,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
 		btnEnterBypass.setEnabled(val);
+		btnRequestAltAtDrop.setEnabled(val);
 		btnsEnabled = val;
 	}
 	
@@ -151,12 +152,14 @@ public class MainWindow extends JPanel implements PacketListener {
 							btnPlaneRestart.setEnabled(true);
 							btnStartRecording.setEnabled(true);
 							btnEnterBypass.setEnabled(true);
+							btnRequestAltAtDrop.setEnabled(true);
 						}
 						else {
 							btnSensorReset.setEnabled(false);
 							btnPlaneRestart.setEnabled(false);
 							btnStartRecording.setEnabled(false);
 							btnEnterBypass.setEnabled(false);
+							btnRequestAltAtDrop.setEnabled(false);
 						}
 					}
 					else {
@@ -246,6 +249,19 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
+			btnRestartStream.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					
+					videoFeed.restartVideoStream();
+				}
+			});
+			
+			btnRequestAltAtDrop.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('g');  //send command to request the altitude at drop value					
+				}
+			});
+			
 			
 	}/* END INITIALIZE BUTTONS */
 	
@@ -312,8 +328,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		lblLatt = new JLabel("");
 		lblLong = new JLabel("");
 		lblHead = new JLabel("");
-		lblHour = new JLabel("");
-		lblMin = new JLabel("");
 		lblSec = new JLabel("");
 		lblMs = new JLabel("");
 		lblAltAtDrop = new JLabel("");
@@ -326,8 +340,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		lblLatt.setForeground(Color.GREEN);
 		lblLong.setForeground(Color.GREEN);
 		lblHead.setForeground(Color.GREEN);
-		lblHour.setForeground(Color.GREEN);
-		lblMin.setForeground(Color.GREEN);
 		lblSec.setForeground(Color.GREEN);
 		lblMs.setForeground(Color.GREEN);
 		lblAltAtDrop.setForeground(Color.GREEN);
@@ -347,10 +359,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataPanel.add(lblLong);
 		dataPanel.add(head);
 		dataPanel.add(lblHead);
-		dataPanel.add(hour);
-		dataPanel.add(lblHour);
-		dataPanel.add(min);
-		dataPanel.add(lblMin);
 		dataPanel.add(sec);
 		dataPanel.add(lblSec);
 		dataPanel.add(ms);
@@ -408,10 +416,17 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnPlaneRestart = new JButton("Plane Restart");
 		servoButtonPanel.add(btnPlaneRestart);
 		
-		//R Dowlling added
+		btnRequestAltAtDrop = new JButton("Get Alt @ Drop");
+		servoButtonPanel.add(btnRequestAltAtDrop);
+		
 		btnStartRecording = new JButton("Start/Stop Recording");
 		servoButtonPanel.add(btnStartRecording);
 		
+		btnRestartStream = new JButton("Restart Video");
+		servoButtonPanel.add(btnRestartStream);
+		
+		
+
 		
 		//Condense above three jpanels into the buttons panel
 		buttonsPanels.add(dataPanel);
@@ -473,7 +488,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		leftPanel.add(buttonsPanels,c);
 		c.weighty = 1;
 		leftPanel.add(planeMessagePanel,c);
-		leftPanel.add(consolePanel,c);
+		c.weighty = 0.5;
+		leftPanel.add(consolePanel,c);  
+		c.weighty = 1;
 		leftPanel.add(logPanel,c);  //panel_1.add(logPanel, c);
 		
 		
@@ -539,15 +556,15 @@ public class MainWindow extends JPanel implements PacketListener {
 		analyzePacket(packet);
 	}
 	
-	//*p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%hour%minute%second%ms&
+	//*p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%second%ms&
 	
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		if (str.substring(0, 1).equals("p")) {
 			String [] strArr = str.split("%");
-			double [] dblArr = new double [7]; //was 5 before, added LAT/Long/Heading/
-			int [] timeArr = new int[4];  //H, M, S, MS
+			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
+			int [] timeArr = new int[2];  //S, MS
 			try {
 				for (int i = 1; i < 8; i++)  //start at 1 - since the first string is *p 
 				{	dblArr[i-1] = Double.parseDouble(strArr[i]);
@@ -560,7 +577,7 @@ public class MainWindow extends JPanel implements PacketListener {
 				
 				}
 				
-				for (int j = 8; j < 12; j++)
+				for (int j = 8; j < 10; j++)
 					timeArr[j-8] = Integer.getInteger(strArr[j]);
 				
 				
@@ -580,22 +597,26 @@ public class MainWindow extends JPanel implements PacketListener {
 			lblLatt.setText(""+dblArr[4]);  
 			lblLong.setText(""+dblArr[5]);
 			lblHead.setText(""+dblArr[6]);  
-			lblHour.setText(""+timeArr[0]);
-			lblMin.setText(""+timeArr[1]);
-			lblSec.setText(""+timeArr[2]);
-			lblMs.setText(""+timeArr[3]);
+			lblSec.setText(""+timeArr[0]);
+			lblMs.setText(""+timeArr[1]);
 			
 			//print to logging screen
 			dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
-									+ "," + timeArr[0] + ":" + timeArr[1] + ":" + timeArr[2] + "." + timeArr[3]  );
+									+ "," + + timeArr[0] + "." + timeArr[1]  );
 			
 			//Update data in VideoFeed Class (it separately logs, 
-			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1], timeArr[2], timeArr[3]);
+			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
 						
 			//update targeting stuff
-			targeter.updateGPSData(dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1], timeArr[2], timeArr[3]);
+			targeter.updateGPSData(dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
 
 			
+		}
+		else if (str.substring(0, 1).equals("a")) {  //have requested the altitude at drop be returned
+			String altAsString = str.substring(str.indexOf("a") + 1);  //remove *a from front
+			altAsString = altAsString.substring(0, altAsString.indexOf("%"));  //remove % from end
+			double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
+			planeMessageConsole.println("Altitude at drop = " + altitudeAtDrop);  //print result to console
 		}
 		else if (str.substring(0, 1).equals("s")) {
 			planeMessageConsole.println(time + "s: Start");
