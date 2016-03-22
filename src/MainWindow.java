@@ -36,6 +36,9 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 /* Commented by Ryan Dowling, Dec. 2015
  * Not positive in all comments, but best guesses (I didn't write this code)  
+ * 
+ * Note: for the dimensions/GUI layout to work, it assumes a screen resolution of 1920*1080.  If that's not the resolution, it will be all messed up.
+ * 
  */
 
 public class MainWindow extends JPanel implements PacketListener {
@@ -374,7 +377,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
 		commPortControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Comm. Port"));
 		commPortSelector = new JComboBox();
-		updateCommPortSelector();
 		commPortControlPanel.add(commPortSelector);
 
 		//topPanel.add(dataPanel);
@@ -493,8 +495,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 1;
 		leftPanel.add(logPanel,c);  //panel_1.add(logPanel, c);
 		
-		
-
+		//once System.out has area it's mapped to in GUI, we can update Comm ports
+		updateCommPortSelector();
 		
 		
 		//RIGHT HAND SIDE

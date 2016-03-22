@@ -3,14 +3,18 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
+import java.util.TimeZone;
 
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -25,7 +29,8 @@ public class Targeter extends JPanel {
 	Timer threadTimer; 
 	
 	//container for image that's created
-	BufferedImage image;
+	BufferedImage targetImage;
+	BufferedImage textImage;
 	
 	//size of created image
 	private int cols = 250, rows = 250;
@@ -36,17 +41,19 @@ public class Targeter extends JPanel {
 	int  second = 0, millisec = 0;
 	
 	//tracking variables:
-	//note: xDistToTarget is a positive if East, and yDistToTarget is positive if North. These are in ft
-	int xPos,  		//cartesian coordinate in x/y grid. +x = East.  Value in m
-		yPos;  		//cartesian coordinate in x/y grid. +y = North.  Value in m
 	boolean payloadDropped = false;
+	private double  planePosXMetres,			// these are cartesian coordinate in x/y grid. +x = East.  Value in m
+					planePosYMetres, 
+					estDropPosXMetres,
+					estDropPosYMetres;
 
 	
-	double  lateralError = 35.1553154,	//lateral error assuming optimal drop time (in m)
-			timeToDrop = 13.13;			//estimated time until optimal drop (in seconds)
+	double  lateralError,	//lateral error assuming optimal drop time (in m)
+			timeToDrop;			//estimated time until optimal drop (in seconds)
 	
 	private int TIME_DELAY_MS_BEFORE_DROP = 500;  //constant offset time between sending drop command (on ground) to receiving it and servo rotating to release payload
 	private double FT_TO_METRES = 0.3048;  
+	private int JPANEL_WIDTH = 1920/2;   //note assumes screen is 1920*1080
 	
 	//target Area Rings & sizing variables
 	private double metersPerPix = 0.5;
@@ -56,7 +63,7 @@ public class Targeter extends JPanel {
     			ringBaseT = rows/2 -ringOutRadius;  //y coordinate of top left corner
 	
 	//GPSPos objects (initialize positions to some offset from target. Currently target is a pt behind ILC
-	double targetLatt = 4413.7078, targetLong = -7629.5106, startOffset = 0.5; //0.5 GPS minutes ~ 500 metres, use as a non-zero starting point (for before GPS fix)
+	double targetLatt = 4413.7167, targetLong = -7629.4883; //0.5 GPS minutes ~ 500 metres, use as a non-zero starting point (for before GPS fix)
 	GPSPos baseGPSposition; 
 	GPSPos curGPSPosition; 
 	GPSPos targetPos;   //this is currently a point just behind ILC. NOTE the NEGATIVE on Long component to account for west
@@ -67,8 +74,10 @@ public class Targeter extends JPanel {
 	public Targeter() {
 		
 		//set size of JPanel
-		Dimension size = new Dimension(cols, rows);
+		Dimension size = new Dimension(JPANEL_WIDTH, rows);
 		this.setPreferredSize(size);
+		
+		
 		
 		 ActionListener updateTargetArea = new ActionListener() {
 		      public void actionPerformed(ActionEvent evt) {
@@ -78,15 +87,15 @@ public class Targeter extends JPanel {
 		  
 	
 		LocalDateTime now = LocalDateTime.now();	//to have a current timestamp
-		int tempInitV = 4, tempInitAlt = 35, tempInitHeading = 42; 
-		int initXOff = -100, initYOff = -100;
-		targetPos = new GPSPos(targetLatt, targetLong,0,0,0,0,0);   //this is currently a point just behind ILC. NOTE the NEGATIVE on Long component to account for west
+		int tempInitV = 10, tempInitAltMeters = 35, tempInitHeading = 42;   
+		int initXOff = -100, initYOff = -100;  //base initial position in meters from target position
+		targetPos = new GPSPos(targetLatt, targetLong,0,0,0,0,0);   //this is currently just behind ILC. NOTE how Long component declared as negative to account for west
 		baseGPSposition = new GPSPos(targetPos.getUTMZone(), targetPos.getUTMLetter(), targetPos.getUTMNorthing()+initYOff, targetPos.getUTMEasting()+initXOff, 
-									tempInitV, tempInitAlt, tempInitHeading, now.getSecond(),now.get(ChronoField.MILLI_OF_SECOND));  //start -initYOff S & -initXOff W of target 
+									tempInitV, tempInitAltMeters, tempInitHeading, now.getSecond(),now.get(ChronoField.MILLI_OF_SECOND));  //start -initYOff S & -initXOff W of target 
 		GSPTargeting = new GPSTargeter(targetPos);
 		  
 		
-		threadTimer = new Timer(100, updateTargetArea);  //33 ms ~30FPS
+		threadTimer = new Timer(33, updateTargetArea);  //33 ms ~30FPS
 		threadTimer.start(); //note: by default Coalescing is on, meaning that if won't queue events
 	
 	}
@@ -105,21 +114,27 @@ public class Targeter extends JPanel {
 	@Override
 	public void paintComponent(Graphics g) {
 		
-	    image = new BufferedImage(cols, rows, BufferedImage.TYPE_3BYTE_BGR);  
-    	Graphics2D frame = image.createGraphics();
-    	
-    	frame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
-   	
-    	addTargetArea(frame);
-    	if(!payloadDropped)
-    		drawPlanePosition(frame);
-    	else
-    	{	frame.setColor(Color.GREEN);
-    		frame.drawString("Payload Dropped!", 10, 20); 
-    	}	
-		g.drawImage(image, 0, 0, null);
-
+		super.paintComponent(g); //prevents repainting
 		
+		updatePlaneCharacteristics();  //update all tracking values used in drawing below
+		
+		//Paint the image
+	    targetImage = new BufferedImage(cols, rows, BufferedImage.TYPE_3BYTE_BGR);  
+    	Graphics2D targetImageFrame = targetImage.createGraphics();
+    	targetImageFrame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
+   	
+    	addTargetArea(targetImageFrame);
+		drawPlanePosition(targetImageFrame);
+
+    	
+		g.drawImage(targetImage, JPANEL_WIDTH/2-cols/2, 0, null);  //center the image
+		
+		
+		//paint the text
+		textImage = new BufferedImage(JPANEL_WIDTH/2-cols/2, rows, BufferedImage.TYPE_3BYTE_BGR);
+    	addText(textImage.createGraphics());
+		g.drawImage(textImage, 0, 0, null);  //center the image
+	
 	}
 	
 	public void setDropStatus(boolean status)
@@ -128,9 +143,64 @@ public class Targeter extends JPanel {
 		
 	}
 	
+	private void updatePlaneCharacteristics()
+	{
+		if(curGPSPosition != null) 
+		{
+			planePosXMetres = curGPSPosition.getUTMEasting() - targetPos.getUTMEasting();
+			planePosYMetres = curGPSPosition.getUTMNorthing() - targetPos.getUTMNorthing();
+			estDropPosXMetres = planePosXMetres + GSPTargeting.getDropDistance()*Math.cos(curGPSPosition.getHeading()*Math.PI/180);
+			estDropPosYMetres = planePosYMetres + GSPTargeting.getDropDistance()*Math.sin(curGPSPosition.getHeading()*Math.PI/180);
+			
+			lateralError = GSPTargeting.getLateralError();
+	 		timeToDrop = GSPTargeting.getTimeToDrop();
+	 		altitudeFt = curGPSPosition.getAltitude()/FT_TO_METRES;
+		}
+		
+	}
+	
+	private void addText(Graphics2D textFrame)
+	{
+		//set to look like background to be clean
+		textFrame.setColor(new Color(240,240,240));  
+		textFrame.fillRect(0, 0, textImage.getWidth(), textImage.getHeight());
+		
+    	//set font colour and size
+		textFrame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
+		textFrame.setColor(Color.BLACK);
+    	textFrame.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);  //make the text looke nice
+    	
+    	
+    	int startTextX = 50,
+    		yTextSpace = 25,
+    		yTextMult = 1;
+    	
+    	textFrame.drawString("Pos: (" + String.format( "%.1f", estDropPosXMetres) + ", " + String.format( "%.1f", estDropPosYMetres) + ")", startTextX, yTextSpace*yTextMult++);
+    	
+    	if(!payloadDropped)
+    	{		   		
+		   		textFrame.drawString(getRing(lateralError), startTextX, yTextSpace*yTextMult++);
+		   		textFrame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", startTextX, yTextSpace*yTextMult++);  //done after so automatically same font colour
+	
+	 			 if(altitudeFt < 100)
+	 				textFrame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitudeFt) + " ft)", startTextX, yTextSpace*yTextMult++);    
+	 			 else if(lateralError < 60)  //otherwise shouldn't drop
+	 				textFrame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", startTextX, yTextSpace*yTextMult++);  //done after so automatically same font colour     			     			 
+
+    	}
+    	else
+    		textFrame.drawString("Payload Dropped!", startTextX, yTextSpace*yTextMult++); 
+    	
+				
+	}
+	
 	//draw 4 rings. Inner = 1.0 scoring multiplier, 2 = .75 etc.  each ring is 15 ft larger in radius
-    void addTargetArea(Graphics2D frame)
-    {
+	private void addTargetArea(Graphics2D frame)
+    {	
+		frame.setColor(new Color(255,255,255));  
+		frame.fillRect(0, 0, targetImage.getWidth(), targetImage.getHeight());
+		
+		
        	Ellipse2D.Double circle = new Ellipse2D.Double();
         
     	//note this assumes that each delta in radius is equal. Note: draw widest, draw next widest to overwrite, repeat until at inner ring
@@ -153,89 +223,34 @@ public class Targeter extends JPanel {
     
     //Note: want to hit point(ringCentX, ringCentY). Each pixel away from that is metersPerPix meters away. The drawing area is constrained by  (targeterStartPixX, targeterStartPixY) as TL
     // to (cols, TotRows) as the BR pt.   drawAreaWidth is the pixels 
-    void drawPlanePosition(Graphics2D frame)
+	private void drawPlanePosition(Graphics2D frame)
     {	
     	
-    	if(curGPSPosition != null)   //at start will be a few frames where this could happen
-     	{ 	//plane position
-     		 double planePosXMetres = curGPSPosition.getUTMEasting() - targetPos.getUTMEasting();
-     		 double planePosYMetres = curGPSPosition.getUTMNorthing() - targetPos.getUTMNorthing();
-     		 drawPoint(frame, (int)(cols/2+planePosXMetres/metersPerPix), (int)(rows/2-planePosYMetres/metersPerPix), 5, Color.YELLOW);
-     		 
-     		 double estDropPosXMetres = planePosXMetres + GSPTargeting.getDropDistance()*Math.cos(curGPSPosition.getHeading()*Math.PI/180);
-     		 double estDropPosYMetres = planePosYMetres + GSPTargeting.getDropDistance()*Math.sin(curGPSPosition.getHeading()*Math.PI/180);
-     		 drawPoint(frame, (int)(cols/2+estDropPosXMetres/metersPerPix), (int)(rows/2-estDropPosYMetres/metersPerPix), 5, Color.CYAN);
-
-     		lateralError = GSPTargeting.getLateralError();
-     		timeToDrop = GSPTargeting.getTimeToDrop();
-     		altitudeFt = curGPSPosition.getAltitude()/FT_TO_METRES;
-     				
-     		 System.out.println("(Xplane, Yplane) = (" + planePosXMetres + ", " + planePosYMetres + ") and (Xdrop, Ydrop) = (" + estDropPosXMetres + ", " + estDropPosYMetres + ")");
- 		
-    	
-    		frame.setColor(Color.RED);
-		    	
-	     	 if(Math.abs(estDropPosXMetres) > metersPerPix*cols/2 || Math.abs(estDropPosYMetres) > metersPerPix*rows/2) //about 300 pixels to draw plane position in
-	     	  		 frame.drawString("Outside of " + metersPerPix*cols/2 + " m in x or y", 10, 20);    		
-	     	 	     	 
-	       	 else   //draw projected drop point, lateral error somewhere
-	     	 {
-	       		 //if/else to decide if writing lateral error in bottom half or top half (so doesn't overwrite the point)
-	     		if(planePosYMetres >= -ringOutRadius*metersPerPix) //bottom left
-	     		{
-	     			frame.drawString(getRing(lateralError, frame), 10, cols - 25);
-	     			frame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", 10, cols - 45);  //done after so automatically same font colour
-	
-	     			 if(altitudeFt < 100)
-	     			  	 frame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitudeFt) + " ft)", 10, cols - 5);    
-	     			 else if(lateralError < 60)  //otherwise shouldn't drop
-	      				 frame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", 10, cols - 5);  //done after so automatically same font colour     			     			 
-	     		}
-	     		else  //top left
-	     		{	
-	     			frame.drawString(getRing(lateralError, frame), 10, 40);
-	     			frame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", 10, 20);  //done after so automatically same font colour
-	
-	     			 if(altitudeFt < 100)
-	     			  	 frame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitudeFt) + " ft)", 10, 60);    
-	     			 else if(lateralError < 60)  //otherwise shouldn't drop
-	      				 frame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", 10, 60);  //done after so automatically same font colour       			      		
-	     		
-	     		 }
-	     		 
-	     		   	 
-	     	 }  
-     	}
-    	
-    	
+    	if(curGPSPosition != null && Math.abs(estDropPosXMetres) < metersPerPix*cols/2 && Math.abs(estDropPosYMetres) < metersPerPix*rows/2)
+    	{
+    		//draw plane (yellow), draw est drop position (cyan)
+     		drawPoint(frame, (int)(cols/2+planePosXMetres/metersPerPix), (int)(rows/2-planePosYMetres/metersPerPix), 5, Color.BLACK);   //plane
+     		drawPoint(frame, (int)(cols/2+estDropPosXMetres/metersPerPix), (int)(rows/2-estDropPosYMetres/metersPerPix), 5, Color.BLUE); //est drop position
+     	 
+     	}    	
     	
     }
     
     
     
-    private String getRing(double latError, Graphics2D frame)
-    {
-    	
+    private String getRing(double latError)
+    {  	
     	if(latError < 15*FT_TO_METRES)
-    	{	frame.setColor(Color.GREEN);	
     		return new String("Proj Ring = "+1);
-    	}
     	else if(latError < 30*FT_TO_METRES)
-    	{	frame.setColor(Color.CYAN);	
     		return new String("Proj Ring = "+2);
-    	}
     	else if(latError < 45*FT_TO_METRES)
-    	{	frame.setColor(Color.YELLOW);	
 			return new String("Proj Ring = "+3);
-    	}
     	else if(latError < 60*FT_TO_METRES)
-    	{	frame.setColor(Color.ORANGE);	
 			return new String("Proj Ring = "+4);
-    	}
     	else
-    	{	frame.setColor(Color.RED);	
 			return "Projected Outside Rings";
-    	}
+    	
     	
     }
     
@@ -284,24 +299,24 @@ public class Targeter extends JPanel {
 		double curEasting = projectXForward(baseGPSposition.getVelocity(), baseGPSposition.getHeading(), baseGPSposition.getUTMEasting(), msFromGPSCoord+TIME_DELAY_MS_BEFORE_DROP); 
 		curGPSPosition = new GPSPos(baseGPSposition.getUTMZone(), baseGPSposition.getUTMLetter(), curNorthing, curEasting, baseGPSposition.getVelocity(), 
 										baseGPSposition.getAltitude(), baseGPSposition.getHeading(), now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
-			
+				
 	}
 		
 	//following functions will end up in GPSPos or GPSTargeter
-	double projectXForward(double spd, double heading, double curX, int timeDiffMs)    //0 degrees = North, 90 degrees = East etc. spd in m/s, curX in m 
+	private double projectXForward(double spd, double heading, double curX, int timeDiffMs)    //0 degrees = North, 90 degrees = East etc. spd in m/s, curX in m 
 	{
 		double angle = headingToMathAngle(heading);
 		return (curX + spd*Math.cos(angle*Math.PI/180)*timeDiffMs/1000.0);
 
 	}
 	
-	double projectYForward(double spd, double heading, double curY, int timeDiffMs)    //0 degrees = North, 90 degrees = East etc. spd in m/s, curX in m 
+	private double projectYForward(double spd, double heading, double curY, int timeDiffMs)    //0 degrees = North, 90 degrees = East etc. spd in m/s, curX in m 
 	{
 		double angle = headingToMathAngle(heading);
 		return (curY + spd*Math.sin(angle*Math.PI/180)*timeDiffMs/1000.0);
 	}
 	
-	double headingToMathAngle(double heading)
+	private double headingToMathAngle(double heading)
 	{
 		//transform from compass degrees to typical math degrees
 		double angle = -1*(heading - 90);

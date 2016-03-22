@@ -6,6 +6,7 @@ import java.awt.FontFormatException;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.geom.Ellipse2D;
@@ -17,6 +18,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoField;
 import java.util.Date;
 import java.util.TimeZone;
 
@@ -119,7 +121,7 @@ public class VideoFeed extends JPanel{
 		
 		//initialize the timestamp
 		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-		sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss");
+		sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss.SSS");
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 		startDate = new String(sdf.format(date));	
 		
@@ -262,20 +264,12 @@ public class VideoFeed extends JPanel{
 		if(!usingCV)
 			img = getImageNonCV();
 		
-		//if(!streamActive)
-		//{	try { Thread.sleep(34);	} catch (InterruptedException e) {} 
-		//}		
 	
-		
 		FrameNum++;
-		  
-	
-		updateStatus();  //just for testing
 		speedGauge.updateValue(airSpd);
 		altGauge.updateValue(altitude);
-		compassGauge.updateValue(heading++);
+		compassGauge.updateValue(heading);
 						
-		
 		//repaint the JFrame (paintComponent will be called)
 		this.repaint();	
 			
@@ -294,6 +288,7 @@ public class VideoFeed extends JPanel{
 			altGauge.draw(modifiedFrame);
 			compassGauge.draw(modifiedFrame);
 			modifiedFrame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
+			modifiedFrame.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);  //make the text looke nice
 
 		
 			
@@ -401,7 +396,7 @@ public class VideoFeed extends JPanel{
 			
 			//set timestamp
 			Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-			startDate = new String(sdf.format(date));		
+			startDate = new String(sdf.format(date)); //+"_"+date.get(ChronoField.MILLI_OF_SECOND)));		
 			
 			videoRecStartTime = System.currentTimeMillis();
 
@@ -427,7 +422,7 @@ public class VideoFeed extends JPanel{
 		        	System.err.println("Could not create file: " + logPath);
 			}
 	        
-		        String s = "Frame,time,roll,pitch,airSpeed,altitude, lattitude, longitude, heading, second, milliSec \n";
+		        String s = "Frame,time,roll,pitch,airSpeed,altitude, lattitude, longitude, heading, second, milliSec, isDropped \n";
 		        try {
 		            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
 		        } catch (IOException e) {
@@ -470,23 +465,12 @@ public class VideoFeed extends JPanel{
 	}
 	
 	
-	int sign=1;
-	private void updateStatus(){
-		//this changes to random values for testing visualization
-		rollAng+= sign;  //to watch it move
-		if(rollAng > 45 || rollAng <-45) sign = -sign;
-		
-		airSpd = 0.25*(FrameNum%300);
-		altitude = 0.5*(FrameNum%311);
-		//possible GPS, pitch, etc.
-		
-	}
-	
+
 	private void logData() {
-	
-		String t = Long.toString(System.currentTimeMillis() - videoRecStartTime);
-		String s = Integer.toString(currentRecordingFN) + "," + t + "," + rollAng + "," + pitchAng + "," + airSpd + "," + altitude + "," + lattitude + "," + longitude + 
-										"," + heading + "," + second + "," + millisec + "\n";
+		
+		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
+		String s = Integer.toString(currentRecordingFN) + "," + sdf.format(date) + "," + rollAng + "," + pitchAng + "," + airSpd + "," + altitude + "," + lattitude + "," + longitude + 
+										"," + heading + "," + second + "," + millisec + "," + isDropped + "\n";
 		
 		try {
 			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)
