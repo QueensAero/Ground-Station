@@ -94,12 +94,13 @@ public class VideoFeed extends JPanel{
 	private BufferedImage img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
 
 	//state variables (containing information about current state of plane)
-	private double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
-	private double lattitude, longitude;
-	private int  second, millisec;
-	boolean isDropped = false;  double altAtDrop = 0, heading = 0; //whether the payload has been dropped
+	public double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
+	public double lattitude, longitude;
+	public int  second, millisec;
+	public boolean isDropped = false;  
+	public double altAtDrop = 0, heading = 0; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false;
-	private int currentRecordingFN = 0;
+	public int currentRecordingFN = 0;
 	private double frameRate = 0;
 	
 	

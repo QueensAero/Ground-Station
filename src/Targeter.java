@@ -39,13 +39,16 @@ public class Targeter extends JPanel {
 	//curent GPS information
 	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitude = 0, longitude = 0, heading = 0;  //altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
 	int  second = 0, millisec = 0;
+	int msFromGPSCoord = 0;
 	
 	//tracking variables:
 	boolean payloadDropped = false;
 	private double  planePosXMetres,			// these are cartesian coordinate in x/y grid. +x = East.  Value in m
 					planePosYMetres, 
 					estDropPosXMetres,
-					estDropPosYMetres;
+					estDropPosYMetres, 
+					actEstDropPosXMeters,  //when dropped this holds the location is was estimated to hit baed on targeter
+					actEstDropPosYMeters;  
 
 	
 	double  lateralError,	//lateral error assuming optimal drop time (in m)
@@ -64,10 +67,10 @@ public class Targeter extends JPanel {
 	
 	//GPSPos objects (initialize positions to some offset from target. Currently target is a pt behind ILC
 	double targetLatt = 4413.7167, targetLong = -7629.4883; //0.5 GPS minutes ~ 500 metres, use as a non-zero starting point (for before GPS fix)
-	GPSPos baseGPSposition; 
-	GPSPos curGPSPosition; 
-	GPSPos targetPos;   //this is currently a point just behind ILC. NOTE the NEGATIVE on Long component to account for west
-	GPSTargeter GSPTargeting; 
+	public GPSPos baseGPSposition; 
+	public GPSPos curGPSPosition; 
+	public GPSPos targetPos;   //this is currently a point just behind ILC. NOTE the NEGATIVE on Long component to account for west
+	public GPSTargeter GSPTargeting; 
 	
 	
 	//constructor
@@ -141,6 +144,12 @@ public class Targeter extends JPanel {
 	{
 		payloadDropped = status;
 		
+		if(payloadDropped)
+		{
+			actEstDropPosXMeters = estDropPosXMetres;
+			actEstDropPosXMeters = estDropPosYMetres;
+		}
+		
 	}
 	
 	private void updatePlaneCharacteristics()
@@ -180,16 +189,21 @@ public class Targeter extends JPanel {
     	if(!payloadDropped)
     	{		   		
 		   		textFrame.drawString(getRing(lateralError), startTextX, yTextSpace*yTextMult++);
-		   		textFrame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", startTextX, yTextSpace*yTextMult++);  //done after so automatically same font colour
-	
+		   		textFrame.drawString("Lat Error = " + String.format( "%.1f", lateralError)+ " m", startTextX, yTextSpace*yTextMult++);  
+		   		textFrame.drawString("Ms Offset: " + msFromGPSCoord + " ms", startTextX, yTextSpace*yTextMult++); 
+
+		   		
 	 			 if(altitudeFt < 100)
 	 				textFrame.drawString("Alt too low! (alt = " + String.format( "%.1f", altitudeFt) + " ft)", startTextX, yTextSpace*yTextMult++);    
 	 			 else if(lateralError < 60)  //otherwise shouldn't drop
-	 				textFrame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", startTextX, yTextSpace*yTextMult++);  //done after so automatically same font colour     			     			 
+	 				textFrame.drawString("Time to Drop = " + String.format( "%.1f", timeToDrop)+ " s", startTextX, yTextSpace*yTextMult++);      			     			 
 
     	}
     	else
-    		textFrame.drawString("Payload Dropped!", startTextX, yTextSpace*yTextMult++); 
+    	{	textFrame.drawString("Payload Dropped!", startTextX, yTextSpace*yTextMult++); 
+    		textFrame.drawString("Est Drop Pos: ("+ String.format( "%.1f", actEstDropPosXMeters) + ", " + String.format( "%.1f", actEstDropPosYMeters) + ")", startTextX, yTextSpace*yTextMult++);
+    	
+    	}
     	
 				
 	}
@@ -285,8 +299,7 @@ public class Targeter extends JPanel {
 		baseGPSposition = new GPSPos(lattitude, longitude, speed, heading, altitudeMetres, sec, ms);
 		
 		LocalDateTime now = LocalDateTime.now();
-		int msFromGPSCoord = getMsBetween(second, millisec, now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
-		System.out.println("Time Offset = " + msFromGPSCoord + " ms");
+		msFromGPSCoord = getMsBetween(second, millisec, now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
 				
 	}
 	

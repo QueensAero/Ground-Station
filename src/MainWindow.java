@@ -1,6 +1,7 @@
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -20,7 +21,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
 import javax.swing.BoxLayout;
+import javax.swing.InputMap;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -29,10 +33,12 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JComboBox;
 import javax.swing.JButton;
+import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.DefaultCaret;
 
 /* Commented by Ryan Dowling, Dec. 2015
  * Not positive in all comments, but best guesses (I didn't write this code)  
@@ -50,6 +56,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnEnterBypass, btnRestartStream;  //button to start/stop recording
+	private InputMap keyboardIn;
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
@@ -210,11 +217,25 @@ public class MainWindow extends JPanel implements PacketListener {
 			//when 'Drop' pressed
 			btnDrop.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					serialComm.write('P');  //send drop command to arduino
-					dropPackage();  //set's flags, prints current time and altitude
+					dropPackage();  //sends command, set's flags, prints current time and altitude
 				}
 			});
-				
+			
+			//this maps the keyboard shortcut CTRL+SHIFT+D to the drop command
+			this.getActionMap().put("dropHandle", new AbstractAction(){
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					if(btnDrop.isEnabled())
+						dropPackage();
+					else
+						planeMessageConsole.println("Shortcut ignored, drop not yet enabled");
+	            }				
+			});
+			
+			this.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_D,KeyEvent.CTRL_DOWN_MASK + KeyEvent.SHIFT_DOWN_MASK),"dropHandle");
+			
+			
+			
 			
 			//when "reset sensor' pressed
 			btnSensorReset.addActionListener(new ActionListener() {
@@ -270,6 +291,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	
 	//called when drop command sent. Updates flag, prints out time and altitude of drop
 	private void dropPackage() {
+		serialComm.write('P');  //send drop command to arduino
 		planeMessageConsole.println("Drop package sent.");
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		System.out.println(time + "s: Package dropped at: "+lblAlt.getText() + " ft");
@@ -309,19 +331,30 @@ public class MainWindow extends JPanel implements PacketListener {
 		JPanel dataPanel = new JPanel();
 		dataPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
 		dataPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		JLabel roll, pitch, speed, alt, latt, longit, head, hour, min, sec, ms, altAtDrop;
+		Font dataPanelFont = new Font(Font.SANS_SERIF, 0, 18);
+		dataPanel.setFont(dataPanelFont);
+		JLabel roll, pitch, speed, alt, latt, longit, head, sec, ms, altAtDrop;
 		roll = new JLabel("Roll:");
+		roll.setFont(dataPanelFont);
 		pitch = new JLabel("Pitch:");
+		pitch.setFont(dataPanelFont);
 		speed = new JLabel("Speed:");
+		speed.setFont(dataPanelFont);
 		alt = new JLabel("Alt:");
+		alt.setFont(dataPanelFont);
 		latt = new JLabel("\nLatt:");
+		latt.setFont(dataPanelFont);
 		longit = new JLabel("Long:");
+		longit.setFont(dataPanelFont);
 		head = new JLabel("Heading:");
-		hour = new JLabel("Time: ");
-		min = new JLabel(":");
-		sec = new JLabel(":");
+		head.setFont(dataPanelFont);
+		sec = new JLabel("Time:");
+		sec.setFont(dataPanelFont);
 		ms = new JLabel(".");
+		ms.setFont(dataPanelFont);
 		altAtDrop = new JLabel("Alt at Drop:");
+		altAtDrop.setFont(dataPanelFont);
+
 
 		//If wanted to clean this up make an array of JLabels...
 		lblRoll = new JLabel("");
@@ -335,18 +368,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		lblMs = new JLabel("");
 		lblAltAtDrop = new JLabel("");
 		
-		lblRoll.setForeground(Color.GREEN);
-		lblPitch.setForeground(Color.GREEN);
-		lblSpeed.setForeground(Color.GREEN);
-		lblAlt.setForeground(Color.GREEN);
 		
-		lblLatt.setForeground(Color.GREEN);
-		lblLong.setForeground(Color.GREEN);
-		lblHead.setForeground(Color.GREEN);
-		lblSec.setForeground(Color.GREEN);
-		lblMs.setForeground(Color.GREEN);
-		lblAltAtDrop.setForeground(Color.GREEN);
-		
+		//lblRoll.setForeground(Color.GREEN);  //left as sample how to change font colour
+	
 		dataPanel.add(roll);
 		dataPanel.add(lblRoll);
 		dataPanel.add(pitch);
@@ -444,6 +468,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		JScrollPane planeMessageScroller = new JScrollPane(planeMessageTextArea);
 		planeMessageConsole = new PrintStream(new TextAreaOutputStream(planeMessageTextArea));
 		planeMessageScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		DefaultCaret planeMessageCaret = (DefaultCaret)planeMessageTextArea.getCaret();
+		planeMessageCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 		planeMessagePanel.add(planeMessageScroller);
 		
 		
@@ -455,6 +481,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		console = new PrintStream(new TextAreaOutputStream(consoleTextArea));
 		consolePanel.setLayout(new BorderLayout());
 		consoleScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		DefaultCaret consoleCaret = (DefaultCaret)consoleTextArea.getCaret();
+		consoleCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 		System.setOut(console);
 		System.setErr(console);
 		consolePanel.add(consoleScroller);
@@ -469,6 +497,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
 		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
 		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		DefaultCaret dataLoggerCater = (DefaultCaret)dataLoggerTextArea.getCaret();
+		dataLoggerCater.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
 		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
 		dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
@@ -564,6 +594,11 @@ public class MainWindow extends JPanel implements PacketListener {
 	private void analyzePacket (String str) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		if (str.substring(0, 1).equals("p")) {
+			//with bytewise representation
+			//http://stackoverflow.com/questions/13469681/how-to-convert-4-bytes-array-to-float-in-java
+			//something like 
+			
+			
 			String [] strArr = str.split("%");
 			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
 			int [] timeArr = new int[2];  //S, MS
@@ -580,7 +615,7 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 				
 				for (int j = 8; j < 10; j++)
-					timeArr[j-8] = Integer.getInteger(strArr[j]);
+					timeArr[j-8] = Integer.parseInt(strArr[j]);
 				
 				
 				

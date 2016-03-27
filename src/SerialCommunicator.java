@@ -371,22 +371,17 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
             	
-            	//incoming data is read into an integer.  
-            	//int integerData = input.read();   //leave as an integer to avoid having to case byte (unsigned) into a char (sort of signed)
-            	//byte singleData = (byte)integerData;
-            	//System.out.println("Character Received: " + (char)integerData + " (int value = " + integerData + ")");
-            	//received.append(new String(new byte[] {singleData}));
+            	           	
             	
             	// Code to read more than one value is receiving data at high baud rate (since event only generated after buffer has been cleared)
-            	int singleData; boolean newLine = false;
-            	System.out.print("Recevied: ");
+            	int singleData; 
+            	//System.out.print("Recevied: ");
             	while((singleData = input.read()) > -1)
             	{	
             		if(singleData != 64 && singleData != 224)    //64 = @, 'test' character. If at 9600 baud, @ is sent as 224  
             		{
-            			newLine = true;
             			received.append(new String(new byte[] {(byte)singleData}));
-            			System.out.print((char)singleData); 
+            			//System.out.print((char)singleData); 
             			if(singleData == 38)  //38 = '&' which is end of packet character.  
             				break;
             		}	
@@ -395,16 +390,14 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             		
             			
             	}
-            	if(newLine)
-            		System.out.println("");      	  
-            	 
+            
             	            	
             	
                 String str;
             	String temp = received.toString();
             	if (temp.contains("*") && temp.contains("&")) {  //* is start character,  & is finish character
             		if (temp.indexOf("*") < temp.indexOf("&")) {
-            			str = temp.substring(temp.indexOf("*")+1, temp.indexOf("&"));
+            			str = temp.substring(temp.indexOf("*")+1, temp.indexOf("&"));  //* and & are removed by this function
             			temp = temp.substring(temp.indexOf("&")+1, temp.length());
             			received.delete(0, received.length());
             			received.insert(0, temp);
@@ -427,7 +420,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //output method: send an integer to this function, and it sends over Xbee to arduino
     public void write (int data) {
     	try {
-    		System.out.println("printing " + (char)data);
+    		//System.out.println("printing " + (char)data);
     		output.write(data);
     		output.flush();  //clear the output buffer - don't let it wait
     	}
