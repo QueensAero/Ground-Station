@@ -81,10 +81,9 @@ public class VideoFeed extends JPanel{
 	
 	//Timing/timestamping/file storing variables
 	private int FrameNum = 0; 
-	private long time,  videoRecStartTime;
+	private long time;
  	String startDate;   
 	//private DecimalFormat df = new DecimalFormat("#000.00");
-	private Path logPath;
 	SimpleDateFormat sdf;
 		
 	//thread variables
@@ -101,14 +100,13 @@ public class VideoFeed extends JPanel{
 	public double altAtDrop = 0, heading = 0; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false;
 	public int currentRecordingFN = 0;
-	private double frameRate = 0;
+	public double frameRate = 0;
 	
 	
 	private ImageWriter jpgWriter;
 	private ImageWriteParam jpgWriteParam;
 	
-	
-	
+		
 	//Gauge graphics
 	SpeedGauge speedGauge;
 	SpeedGauge altGauge;
@@ -171,7 +169,7 @@ public class VideoFeed extends JPanel{
 		  };
 		
 		threadTimer = new Timer(33, updateStream);  //33 ms ~30FPS
-		threadTimer.start(); //note: by default Coalescing is on, meaning that if won't queue events
+		threadTimer.start(); //note: by default Coalescing is on, meaning that it won't queue events
 	
 	}
 	
@@ -318,7 +316,7 @@ public class VideoFeed extends JPanel{
 			doRecording(modifiedFrame);
 					
 						  
-			//drawHorizon(modifiedFrame);
+			drawHorizon(modifiedFrame);
 			
 			//draw the image to the screen
 			g.drawImage(img, 0, 0, null);
@@ -338,7 +336,6 @@ public class VideoFeed extends JPanel{
     	//check whether to save video		  
 		if(recordingVideo  && currentRecordingFN < maxFrames)
 		{	saveFrame();	
-			logData();		
 			currentRecordingFN++;	
 			
 			//write recording status (already have font loaded)
@@ -394,42 +391,8 @@ public class VideoFeed extends JPanel{
 		if(!recordingVideo)  //start recording
 		{	
 			recordingVideo = true;	currentRecordingFN = 1;  //reset
-			
-			//set timestamp
-			Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-			startDate = new String(sdf.format(date)); //+"_"+date.get(ChronoField.MILLI_OF_SECOND)));		
-			
-			videoRecStartTime = System.currentTimeMillis();
-
 			System.out.println("Recording Set to ON");
 			
-			//START OUTPUT STREAM
-			logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
-					"Aero" + File.separator + "Images" + File.separator + startDate + "_log.txt");
-			
-			// Create "Images" folder if it does not exist:
-			try {
-				Files.createDirectories(logPath.getParent());
-			} catch (IOException e2) {
-				System.err.println("Could not create directory: " + logPath.getParent());
-			}
-			
-			// Create log file:
-		        try {
-		            Files.createFile(logPath);
-		        } catch (FileAlreadyExistsException e) {
-		            System.err.println("File already exists: " + logPath);
-		        } catch (IOException e) {
-		        	System.err.println("Could not create file: " + logPath);
-			}
-	        
-		        String s = "Frame,time,roll,pitch,airSpeed,altitude, lattitude, longitude, heading, second, milliSec, isDropped \n";
-		        try {
-		            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
-		        } catch (IOException e) {
-		        // It's really hard to recover from an IOException. Should probably just notify user and stop recording.
-		            System.err.println("Could not write to file: " + logPath);
-		        }
 		}
 		else //stop recording video
 		{
@@ -467,34 +430,20 @@ public class VideoFeed extends JPanel{
 	
 	
 
-	private void logData() {
 		
-		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-		String s = Integer.toString(currentRecordingFN) + "," + sdf.format(date) + "," + rollAng + "," + pitchAng + "," + airSpd + "," + altitude + "," + lattitude + "," + longitude + 
-										"," + heading + "," + second + "," + millisec + "," + isDropped + "\n";
-		
-		try {
-			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)
-			// If this is too slow, then we will have to either set up a BufferedWriter and just close it when we are
-			// done recording, OR we could simply save the data in an array and then print it all when we're done recording.
-			Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
-		} catch (IOException e) {
-			// It's really hard to recover from an IOException. Should probably just notify user and stop recording.
-			System.err.println("Could not write to file: " + logPath);
-		}		
-			
-	}
-	
 
 	//some constants for the drawHorizon Function
 	Point origin = new Point(cols/2, vidRows/2);
 	private final static int r = (cols-100)/2;  //radius of line
 	private final static int verticalOffset = 100;
-	private void drawHorizon(Graphics2D g){		//let 0 degrees be neutral, and -45 degrees be /  and 45 degrees be \
+	
+	private void drawHorizon(Graphics2D g){		//let 0 degrees be neutral, and -45 degrees be \  and 45 degrees be /
+		
+		double angle = -rollAng;  //when I made this i guessed wrong 
 		
 		//some math to use polar coodinates
-		double cosTheta = Math.cos(rollAng*Math.PI/180);
-		double sinTheta = Math.sin(rollAng*Math.PI/180);		
+		double cosTheta = Math.cos(angle*Math.PI/180);
+		double sinTheta = Math.sin(angle*Math.PI/180);		
 		int dx =  (int)(r*cosTheta), dy = (int) (r*sinTheta);  //distances from the origin to end of line along x and y axis
 		int xoff = (int) (verticalOffset*sinTheta), yoff = (int) (-verticalOffset*cosTheta);  //offset for the upper/lower lines
 		

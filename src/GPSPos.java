@@ -1,5 +1,4 @@
-// TODO: Add timestamp to keep a record of when GPSPos is received
-// ^ I did that, and added the accessors I needed
+
 
 public class GPSPos {
 

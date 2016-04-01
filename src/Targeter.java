@@ -3,7 +3,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -11,10 +10,8 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 
 
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
-import java.util.TimeZone;
 
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -42,17 +39,17 @@ public class Targeter extends JPanel {
 	int msFromGPSCoord = 0;
 	
 	//tracking variables:
-	boolean payloadDropped = false;
-	private double  planePosXMetres,			// these are cartesian coordinate in x/y grid. +x = East.  Value in m
-					planePosYMetres, 
-					estDropPosXMetres,
-					estDropPosYMetres, 
-					actEstDropPosXMeters,  //when dropped this holds the location is was estimated to hit baed on targeter
-					actEstDropPosYMeters;  
+	public boolean payloadDropped = false;
+	private double  planePosXMetres = 0,			// these are cartesian coordinate in x/y grid. +x = East.  Value in m
+					planePosYMetres = 0, 
+					estDropPosXMetres = 0,
+					estDropPosYMetres = 0, 
+					actEstDropPosXMeters = 0,  //when dropped this holds the location is was estimated to hit baed on targeter
+					actEstDropPosYMeters = 0;  
 
 	
-	double  lateralError,	//lateral error assuming optimal drop time (in m)
-			timeToDrop;			//estimated time until optimal drop (in seconds)
+	public double  lateralError = 0,	//lateral error assuming optimal drop time (in m)
+					timeToDrop = 0;			//estimated time until optimal drop (in seconds)
 	
 	private int TIME_DELAY_MS_BEFORE_DROP = 500;  //constant offset time between sending drop command (on ground) to receiving it and servo rotating to release payload
 	private double FT_TO_METRES = 0.3048;  
@@ -103,14 +100,20 @@ public class Targeter extends JPanel {
 	
 	}
 	
+	public double getEstDropPosXMetres() { return estDropPosXMetres; }
+	public double getEstDropPosYMetres() { return estDropPosYMetres; }
+	public double actEstDropPosXMeters() { return actEstDropPosXMeters; }
+	public double actEstDropPosYMeters() { return actEstDropPosYMeters; }
+	
+
+	
+	
 	public void update()
 	{
 		//transform baseGPSPos to 'curent' time
 		transformBasetoCurGPSPos();   //result will be that the curGPSPosition object contains the most recent location (after accounting for time delays)
 		GSPTargeting.updateCurPos(curGPSPosition); //GPSposition is last received point from GPS. The object is updated changed when updateGPSData is callsed
-		this.repaint();
-		
-	
+		this.repaint();	
 		
 	}
 	
@@ -363,7 +366,7 @@ public class Targeter extends JPanel {
 		//TEMP - change to something like 5000 later
 		if(timeBtwn > 60000)  //if >5 seconds, point likely an error, so return the average assumed offset of 1 second (NOTE: change this based on testing)
 		{	
-			System.out.println("Offset: " + timeBtwn + " ms rejected (too high)");
+			//System.out.println("Offset: " + timeBtwn + " ms rejected (too high)");
 			timeBtwn = 1000;
 		}
 					

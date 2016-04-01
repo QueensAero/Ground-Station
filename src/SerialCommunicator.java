@@ -8,6 +8,7 @@ import gnu.io.UnsupportedCommOperationException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -20,11 +21,11 @@ import java.util.TooManyListenersException;
 
 
 
-
 interface PacketListener {
-	void packetReceived(String packet);
+	void packetReceived(String packet, byte[] byteArray, int byteArrayInd);
 	void invalidPacketReceived(String packet);
 }
+
 
 public class SerialCommunicator implements SerialPortEventListener, PacketListener {
 	
@@ -46,10 +47,14 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	final static int BAUD_RATE = 57600;  //57600;  //9600
 	
 	private StringBuffer received = new StringBuffer();
+	private byte[] receivedBytes = new byte[200];
+	private int byteInd = 0, packetStart = -1, packetEnd = -1;
 	
 	//constructor
 	public SerialCommunicator() {
 		updatePortList();
+		
+		 
 	}
 	
 	
@@ -98,6 +103,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     public void connect(String selectedPort) {
     	
     	received.setLength(0);  //information received is set (or reset) to 0 for new connection
+    	byteInd = 0;
+    	packetStart = packetEnd = -1;
+    	
     	selectedPortIdentifier = (CommPortIdentifier)portMap.get(selectedPort); //get information of the selected port 
     	CommPort commPort;  //temporary variable see below - is it even necessary?
     	
@@ -333,9 +341,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //this is called from serialEvent function, and calles the packetReceived function in the MainWindow Class
     //(actually calls it for all listeners, but should only be one listener??)
 	@Override
-	public void packetReceived(String packet) {
+	public void packetReceived(String packet, byte[] byteArray, int byteArrayInd) {
 		for (int i = 0; i < listeners.size(); i++)
-			listeners.get(i).packetReceived(packet);
+			listeners.get(i).packetReceived(packet, byteArray, byteArrayInd);
 	}
 	
 
@@ -371,7 +379,77 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
             	
-            	           	
+	        	int singleData; 
+      	
+	        	while((singleData = input.read()) > -1)
+	        	{	
+       		
+					received.append(new String(new byte[] {(byte)singleData}));
+					receivedBytes[byteInd++] = (byte)singleData;  //shouldn't lose information, since singleData is int between 0-255
+
+					           			
+					if(byteInd > 200)  //something seriously wrong
+					{
+						System.out.println("Resetting byte Index (since > 200)");
+						byteInd = 0;
+						received.delete(0, received.length());      	
+						packetStart = packetEnd = -1;
+		
+					}
+					
+					if(singleData == 42)  // 42 = '*'   the start of packet character						
+					{	packetStart = byteInd-1;
+
+					}
+					else if(singleData == 38)  //38 = '&' which is end of packet character.  
+					{	
+						packetEnd = byteInd;  //this points indexOf("&")+1
+						break; //analyze the packet            			
+					
+					}
+	        		
+	        			
+	        	}
+	            
+	                     	
+	            	
+	        	String temp = received.toString();
+	        	String str; 			            			
+	            			
+				if(packetEnd == (packetStart+34) && temp.substring(packetStart+1, packetStart+2).equals("p"))  //data string
+				{
+					str = temp.substring(packetStart+1, packetEnd-1);  //* and & are removed by this function
+	    			packetReceived(str, receivedBytes.clone(), packetStart+2);  //+2 to get do start of data (past *p)
+					byteInd = 0;
+					packetStart = packetEnd = -1;
+	    			received.delete(0, received.length());
+	
+				}
+				else if(packetStart < packetEnd && packetEnd >= 0)
+				{
+					str = temp.substring(packetStart+1, packetEnd-1);  //* and & are removed by this function
+	        		packetReceived(str, receivedBytes.clone(), -1);  //-1 indicates non-data string         
+	        		byteInd = 0;
+					packetStart = packetEnd = -1;
+	    			received.delete(0, received.length());
+					
+				}
+				else if(packetStart != -1 && packetEnd != -1)  //has * and & but don't match requirements, therefore invalid packet
+				{
+					System.out.println("PE - PS = " + (packetEnd-packetStart));
+					received.delete(0, received.length());
+	    			invalidPacketReceived(temp);
+	    			byteInd = 0;
+					packetStart = packetEnd = -1;
+				}
+	        }
+	        catch (Exception e) {
+	            System.out.println("Failed to read data.");
+	            e.printStackTrace();
+	        }
+            	 
+            	
+            /* Old way - works for sure, save just in case	
             	
             	// Code to read more than one value is receiving data at high baud rate (since event only generated after buffer has been cleared)
             	int singleData; 
@@ -380,8 +458,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             	{	
             		if(singleData != 64 && singleData != 224)    //64 = @, 'test' character. If at 9600 baud, @ is sent as 224  
             		{
-            			received.append(new String(new byte[] {(byte)singleData}));
-            			//System.out.print((char)singleData); 
+            			received.append(new String(new byte[] {(byte)singleData}));   			
+            		           			
+
             			if(singleData == 38)  //38 = '&' which is end of packet character.  
             				break;
             		}	
@@ -391,8 +470,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             			
             	}
             
-            	            	
-            	
+                     	          	
                 String str;
             	String temp = received.toString();
             	if (temp.contains("*") && temp.contains("&")) {  //* is start character,  & is finish character
@@ -414,6 +492,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
                 System.out.println("Failed to read data.");
                 e.printStackTrace();
             }
+            
+            */
+            
         }
     }
     

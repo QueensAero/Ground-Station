@@ -6,6 +6,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
+import javafx.util.converter.ByteStringConverter;
+
 import javax.swing.JPanel;
 
 import java.awt.BorderLayout;
@@ -16,10 +18,22 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.TimeZone;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -35,6 +49,7 @@ import javax.swing.JComboBox;
 import javax.swing.JButton;
 import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.Timer;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -56,7 +71,6 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnEnterBypass, btnRestartStream;  //button to start/stop recording
-	private InputMap keyboardIn;
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
@@ -66,13 +80,133 @@ public class MainWindow extends JPanel implements PacketListener {
 	long connectTime;
 	boolean btnsEnabled = false;
 	
+	//thread variables
+	Timer threadTimer; 
+	
+	//logging variables
+	private Path logPath;
+	SimpleDateFormat sdf;
+	String startDate;
+	long startTime = 0;
+
+	
 	//constructor
 	public MainWindow (SerialCommunicator sc) {
 		serialComm = sc;
 		initializeComponents();
 		initializeButtons();
 		
+		 ActionListener loggingAL = new ActionListener() {
+		      public void actionPerformed(ActionEvent evt) {
+		         logData();
+		      }
+		  };
+		  
+		  
+		initLogging();
+		
+		threadTimer = new Timer(100, loggingAL);  //33 ms ~30FPS
+		threadTimer.start(); //note: by default Coalescing is on, meaning that it won't queue events
+		
+		
+		/* Testing for I/O stuff (delete later)
+		int a = 0b01000000, b = 0b00111000,	c = 0b00110101,	d = 0b00110001; 		//a = 0b01000000, = 64 as int, which as string is "64"
+	
+		StringBuffer test = new StringBuffer();
+		test.append(a);  test.append(b);	test.append(c);		test.append(d);
+		String temp = test.toString();
+		int index = 0;
+		byte testByte1 = Byte.parseByte(temp.substring(index++, ++index));
+		byte testByte2 = Byte.parseByte(temp.substring(index++, ++index));
+		byte testByte3 = Byte.parseByte(temp.substring(index++, ++index));
+		byte testByte4 = Byte.parseByte(temp.substring(index++, ++index));
+		int asInt = (testByte4 & 0xFF) | ((testByte3 & 0xFF) << 8) | ((testByte2 & 0xFF) << 16)  | ((testByte1 & 0xFF) << 24);
+		float asFloat = Float.intBitsToFloat(asInt);
+		System.out.println("S: " + temp + " I: " + asInt + " F: " + asFloat);
+		
+		int one = 200;
+		byte hello = (byte)one;
+		int two = (int)(hello & 0xFF);
+		System.out.println("Two = " + two);  */
+		
 	}
+	
+	
+	
+	
+	
+	private void initLogging(){
+		
+		
+		sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss.SSS");
+		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+		
+		//set timestamp
+		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
+		startDate = new String(sdf.format(date)); ;
+				
+		
+		//START OUTPUT STREAM
+		logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
+				"Aero" + File.separator + "Images" + File.separator + startDate + "_log.txt");
+		
+		// Create "Images" folder if it does not exist:
+		try {
+			Files.createDirectories(logPath.getParent());
+		} catch (IOException e2) {
+			System.err.println("Could not create directory: " + logPath.getParent());
+		}
+		
+		// Create log file:
+        try {
+            Files.createFile(logPath);
+        } catch (FileAlreadyExistsException e) {
+            System.err.println("File already exists: " + logPath);
+        } catch (IOException e) {
+        	System.err.println("Could not create file: " + logPath);
+        }
+        
+        String s = "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt,latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+        
+        try {
+            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
+        } catch (IOException e) {
+        // It's really hard to recover from an IOException. Should probably just notify user and stop recording.
+            System.err.println("Could not write to file: " + logPath);
+        }
+        
+        startTime = System.currentTimeMillis();
+		
+	}
+
+	private void logData() {
+		
+		//Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
+		LocalDateTime now = LocalDateTime.now();
+		
+		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + targeter.curGPSPosition.getSecond() + "." + targeter.curGPSPosition.getMilliSecond() + ","  + now.getHour() 
+					+ "." + now.getMinute() +"."+ now.getSecond() +"."+ now.get(ChronoField.MILLI_OF_SECOND) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
+					+ "," + String.format("%.4f",videoFeed.rollAng) + "," + String.format("%.4f",videoFeed.pitchAng) + "," + String.format("%.4f",videoFeed.airSpd) + "," 
+					+ String.format("%.4f",videoFeed.altitude) + "," + String.format("%.4f",videoFeed.lattitude) + ","	+ String.format("%.4f",videoFeed.longitude) + "," 
+					+ String.format("%.3f",targeter.curGPSPosition.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
+					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
+					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDrop) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
+					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "\n";
+			
+				
+		
+		try {
+			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)
+			// If this is too slow, then we will have to either set up a BufferedWriter and just close it when we are
+			// done recording, OR we could simply save the data in an array and then print it all when we're done recording.
+			Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
+		} catch (IOException e) {
+			// It's really hard to recover from an IOException. Should probably just notify user and stop recording.
+			System.err.println("Could not write to file: " + logPath);
+		}		
+			
+	}
+	
 	
 		
 	//set enabled setting for all plane control buttons at once
@@ -583,22 +717,47 @@ public class MainWindow extends JPanel implements PacketListener {
 	}
 	
 	//called from SerialCommunicator?
-	public void packetReceived(String packet) {
+	public void packetReceived(String packet, byte[] byteArray, int byteArrayInd) {
 		//System.out.println(packet);
-		analyzePacket(packet);
+		analyzePacket(packet, byteArray, byteArrayInd);
 	}
 	
-	//*p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%second%ms&
+	//*p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%second%ms&  is old way
+	//*pXXXXYYYYZZZZAAAABBBBCCCCDDDDstt%    is new way, with XXXX = four bytes which combined make a float, s = 1 byte making uint8_t, tt = 2 bytes making uint16_t
 	
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
-	private void analyzePacket (String str) {
+	private void analyzePacket (String str, byte[] byteArray, int byteArrayInd) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
-		if (str.substring(0, 1).equals("p")) {
+		
 			//with bytewise representation
 			//http://stackoverflow.com/questions/13469681/how-to-convert-4-bytes-array-to-float-in-java
 			//something like 
+		if(byteArrayInd >= 0){	//non negative indicates data packet (data packets the string stuff is weird
+			
+			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
+			int [] timeArr = new int[2];  //S, MS
+			
+			for(int x = 0; x < 7; x++)  //extract 7 float values (which are cast to double)
+			{	
+				dblArr[x] = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
+				
+				//rounding code
+				if(x != 4 && x != 5)  //round to 2 decimal places
+					dblArr[x] = Math.round(100*dblArr[x])/100.0;
+				else  //round to 4 decimal places (latt and long)
+					dblArr[x] = Math.round(10000*dblArr[x])/10000.0;	
+			
+			}
+			
+			//extract time values
+			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
+			timeArr[1] = extractuInt16(byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
+
 			
 			
+			
+			/*Old method
+		if (str.substring(0, 1).equals("p")) {
 			String [] strArr = str.split("%");
 			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
 			int [] timeArr = new int[2];  //S, MS
@@ -621,9 +780,9 @@ public class MainWindow extends JPanel implements PacketListener {
 				
 			} catch (Exception e) {
 				System.out.println(time + "s: Encountered an invalid packet: \"" + str + "\"");
-			}
+			}*/
 			
-			dblArr[3] *= 0.514444;  //CONVERT from knots TO m/s
+			dblArr[3] = Math.round(10000*dblArr[3]*0.514444)/10000.0;  //CONVERT from knots TO m/s
 			dblArr[5] *= -1;		//acount for the fact it should have 'W' attached (western hemisphere == negative longitude)
 			
 			//print to status area (top left)
@@ -689,4 +848,35 @@ public class MainWindow extends JPanel implements PacketListener {
 			planeMessageConsole.println(time + "s: MPU6050 Initializing");
 		}
 	}
+	
+	double extractFloat(byte byte1, byte byte2, byte byte3, byte byte4)  //byte 1 is lowermost byte
+	{
+			
+		int asInt = (byte1 & 0xFF) | ((byte2 & 0xFF) << 8) | ((byte3 & 0xFF) << 16)  | ((byte4 & 0xFF) << 24);
+		return (double)Float.intBitsToFloat(asInt);
+		
+	}
+	
+	int extractInt(byte byte1, byte byte2, byte byte3, byte byte4)  //byte 1 is lowermost byte
+	{
+			
+		return (byte1 & 0xFF) | ((byte2 & 0xFF) << 8) | ((byte3 & 0xFF) << 16)  | ((byte4 & 0xFF) << 24);
+		
+	}
+	
+	int extractuInt8(byte byte1)  //byte 1 is lowermost byte
+	{
+			
+		return (int)(byte1 & 0xFF);
+		
+	}
+	
+	int extractuInt16(byte byte1, byte byte2)  //byte 1 is lowermost byte
+	{
+			
+		return (int)(((byte2 & 0xFF) << 8)  | ((byte1 & 0xFF)));
+		
+	}
 }
+
+
