@@ -160,7 +160,7 @@ public class CompassGauge { //implements Gauge {
 		
 		//drawTrack(graphics);
 		drawCompass(graphics);
-		graphics.setTransform(new AffineTransform());
+		//graphics.setTransform(new AffineTransform());
 		drawArrow(graphics);
 		drawDot(graphics);
 
@@ -319,14 +319,28 @@ private void drawArrow(Graphics2D graphics) {
 			
 			int padding = 5;
 			
-			AffineTransform transform = getTransform();
-			transform.rotate(angle, xOffset, yOffset);
-			transform.translate(0, -radius + textHeight / 2 + padding);
-			
-			graphics.setTransform(transform);
+			/* This was changed from the orginal code, because it does not follow the convention 
+			 * of restoring the original transform when applying new transformations. By not
+			 * restoring, the scaling transform in VideoFeed gets messed up. 
+			 */
+			/***** REMOVED: *****/
+			//AffineTransform transform = getTransform();
+			//transform.rotate(angle, xOffset, yOffset);
+			//transform.translate(0, -radius + textHeight / 2 + padding);
+			//graphics.setTransform(transform);
+			//graphics.drawString(text, x, y);
+			//angle += step;
+			/***** ADDED: *****/
+			AffineTransform saveXform = graphics.getTransform(); // Save current transform so it can be restored afterward
+			AffineTransform newXform = getTransform();
+			newXform.rotate(angle, xOffset, yOffset);
+			newXform.translate(0, -radius + textHeight / 2 + padding);
+			graphics.transform(newXform); // Apply scaling transform
 			graphics.drawString(text, x, y);
-			
 			angle += step;
+			graphics.setTransform(saveXform); // Restore initial transform
+			/***** END *****/
+
 		}
 	}
 }
