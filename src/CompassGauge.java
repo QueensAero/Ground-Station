@@ -242,12 +242,22 @@ private void drawArrow(Graphics2D graphics) {
 	//@Override
 	public void updateValue(double heading){     //TrackPoint trackPoint, Map<String, Extension> extensions) {
 		
-		angleRadians = heading*PI/180.0;;
-		
+		//angleRadians = headingToMathAngle(heading)*PI/180.0;;
+		angleRadians = headingToWhatThisClassWants(heading)*PI/180.0;
 		//current = trackPoint;
 		//CompassExtension extension = (CompassExtension) extensions.get(CompassExtension.KEY);
 		//angleRadians = extension.getAngleRadians();
 	}
+	
+	private double headingToWhatThisClassWants(double heading)
+	{
+		//transform from compass degrees to whatever this class uses
+		heading *= -1;
+		heading += 270;
+		return heading;
+		
+	}
+	
 	
 	
 	private void makeShadow() {

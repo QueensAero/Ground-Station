@@ -49,6 +49,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	private StringBuffer received = new StringBuffer();
 	private byte[] receivedBytes = new byte[200];
 	private int byteInd = 0, packetStart = -1, packetEnd = -1;
+	private int firstEndCharInd = -1;
+	
+
 	
 	//constructor
 	public SerialCommunicator() {
@@ -105,6 +108,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	received.setLength(0);  //information received is set (or reset) to 0 for new connection
     	byteInd = 0;
     	packetStart = packetEnd = -1;
+    	firstEndCharInd = -1;
     	
     	selectedPortIdentifier = (CommPortIdentifier)portMap.get(selectedPort); //get information of the selected port 
     	CommPort commPort;  //temporary variable see below - is it even necessary?
@@ -348,7 +352,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	
 
     //this calles the invalidPacketReceived function in the MainWindow Class
-    //(actually calls it for all listeners, but should only be one listener??)
 	@Override
 	public void invalidPacketReceived (String packet) {
 		for (int i = 0; i < listeners.size(); i++)
@@ -381,6 +384,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             	
 	        	int singleData; 
       	
+	        	//note: have to be careful since 
 	        	while((singleData = input.read()) > -1)
 	        	{	
        		
@@ -388,23 +392,30 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 					receivedBytes[byteInd++] = (byte)singleData;  //shouldn't lose information, since singleData is int between 0-255
 
 					           			
-					if(byteInd > 200)  //something seriously wrong
+					if(byteInd > 80)  //something missed the end, reset
 					{
-						System.out.println("Resetting byte Index (since > 200)");
+						System.out.println("Resetting byte Index (since > 80)");
 						byteInd = 0;
 						received.delete(0, received.length());      	
 						packetStart = packetEnd = -1;
 		
 					}
 					
-					if(singleData == 42)  // 42 = '*'   the start of packet character						
+					if(singleData == 42 && packetStart == -1)  // 42 = '*'   the start of packet character, and == -1 to ensure it isn't reset						
 					{	packetStart = byteInd-1;
 
 					}
-					else if(singleData == 38)  //38 = '&' which is end of packet character.  
+					else if(singleData == 101)  //101 = 'e' which is end of packet character.  It must come twice (avoid case where float bytewise rep. has end of packet character in it
 					{	
-						packetEnd = byteInd;  //this points indexOf("&")+1
-						break; //analyze the packet            			
+											
+						if(firstEndCharInd != -1 && byteInd == (firstEndCharInd+1))
+						{	packetEnd = byteInd;  //this points indexOf("&")+1
+							break; //analyze the packet        
+						}
+						else
+							firstEndCharInd = byteInd;  //first time through it will set to true. If two adjacent 'e' received, then next time will get into first if. Otherwise will reset this
+						
+						//note seconds are last sent, and they can never be 'e' (since value between 0-60. 
 					
 					}
 	        		
@@ -415,32 +426,36 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	            	
 	        	String temp = received.toString();
 	        	String str; 			            			
-	            			
-				if(packetEnd == (packetStart+34) && temp.substring(packetStart+1, packetStart+2).equals("p"))  //data string
+	            
+	        	//If have * and ee, both packetEnd and packetStart will be non-zero. Two cases: 
+	        	// if there are exactly 35 characters, and second character is p, then have a data packet
+	        	//If packetStart < packetEnd, and packetStart >= 0 and packetEnd >= 0, then it's a simple message (ie. Reset Acknowledged)
+	        	//if packetEnd is not -1 and neither of those are true, it's a bad packet and we reset
+				if(packetEnd == (packetStart+35) && temp.substring(packetStart+1, packetStart+2).equals("p"))  //data string
 				{
 					str = temp.substring(packetStart+1, packetEnd-1);  //* and & are removed by this function
 	    			packetReceived(str, receivedBytes.clone(), packetStart+2);  //+2 to get do start of data (past *p)
 					byteInd = 0;
-					packetStart = packetEnd = -1;
+					packetStart = packetEnd = firstEndCharInd = -1;
 	    			received.delete(0, received.length());
-	
+	    				
 				}
-				else if(packetStart < packetEnd && packetEnd >= 0)
+				else if(packetStart < packetEnd && packetEnd >= 0 && packetStart >= 0) 
 				{
 					str = temp.substring(packetStart+1, packetEnd-1);  //* and & are removed by this function
 	        		packetReceived(str, receivedBytes.clone(), -1);  //-1 indicates non-data string         
 	        		byteInd = 0;
-					packetStart = packetEnd = -1;
+					packetStart = packetEnd = firstEndCharInd = -1;
 	    			received.delete(0, received.length());
 					
 				}
-				else if(packetStart != -1 && packetEnd != -1)  //has * and & but don't match requirements, therefore invalid packet
+				else if(packetEnd != -1)  //if packetEnd is not -1 and doesn't fit above boxes, means we have bad packet
 				{
 					System.out.println("PE - PS = " + (packetEnd-packetStart));
 					received.delete(0, received.length());
 	    			invalidPacketReceived(temp);
 	    			byteInd = 0;
-					packetStart = packetEnd = -1;
+					packetStart = packetEnd = firstEndCharInd = -1;
 				}
 	        }
 	        catch (Exception e) {

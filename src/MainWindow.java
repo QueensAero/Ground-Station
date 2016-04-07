@@ -1,4 +1,3 @@
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -6,7 +5,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
-import javafx.util.converter.ByteStringConverter;
 
 import javax.swing.JPanel;
 
@@ -33,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Random;
 import java.util.TimeZone;
 
 import javax.swing.AbstractAction;
@@ -67,14 +66,14 @@ public class MainWindow extends JPanel implements PacketListener {
 	public VideoFeed videoFeed;
 	public Targeter targeter;
 	private JComboBox commPortSelector;
-	private JButton btnRefresh, btnConnect; //connection buttons
+	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnEnterBypass, btnRestartStream;  //button to start/stop recording
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
-	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblLatt, lblLong, lblHead, lblSec, lblMs, lblAltAtDrop; //labels to display the values
+	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblHead, lblTS, lblAltAtDrop; //labels to display the values
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
 	long connectTime;
@@ -93,7 +92,9 @@ public class MainWindow extends JPanel implements PacketListener {
 	//constructor
 	public MainWindow (SerialCommunicator sc) {
 		serialComm = sc;
+
 		initializeComponents();
+
 		initializeButtons();
 		
 		 ActionListener loggingAL = new ActionListener() {
@@ -103,11 +104,12 @@ public class MainWindow extends JPanel implements PacketListener {
 		  };
 		  
 		  
-		initLogging();
-		
+
 		threadTimer = new Timer(100, loggingAL);  //33 ms ~30FPS
-		threadTimer.start(); //note: by default Coalescing is on, meaning that it won't queue events
 		
+		//Uncomment to having logging start at program start (DO THIS FOR COMPETITION)
+		//initLogging();
+		//threadTimer.start();
 		
 		/* Testing for I/O stuff (delete later)
 		int a = 0b01000000, b = 0b00111000,	c = 0b00110101,	d = 0b00110001; 		//a = 0b01000000, = 64 as int, which as string is "64"
@@ -129,6 +131,42 @@ public class MainWindow extends JPanel implements PacketListener {
 		int two = (int)(hello & 0xFF);
 		System.out.println("Two = " + two);  */
 		
+		
+		/* Testing distribution of bytes within a float
+		float rand;
+		int [] freq1 = new int[256];
+		int [] freq2 = new int[256];
+		int [] freq3 = new int[256];
+		int [] freq4 = new int[256];
+
+		
+		
+		Random randomGen = new Random();
+		for(int i = 0; i < 1000000; i++)
+		{	
+			rand = randomGen.nextFloat()*5000;
+			
+			int floatBits = Float.floatToRawIntBits(rand);
+			freq1[(int)(floatBits & 0xFF)]++;
+			freq2[(int)((floatBits & 0xFF00) >> 8)]++;
+			freq3[(int)((floatBits & 0xFF0000) >> 16)]++;
+			freq4[(int)((floatBits & 0xFF000000) >> 24)]++;
+		}
+		
+		
+		for(int i = 0; i < 256; i++)
+			System.out.print(freq1[i] + ",");
+		System.out.println("");
+		for(int i = 0; i < 256; i++)
+			System.out.print(freq2[i] + ",");
+		System.out.println("");
+		for(int i = 0; i < 256; i++)
+			System.out.print(freq3[i] + ",");
+		System.out.println("");
+		for(int i = 0; i < 256; i++)
+			System.out.print(freq4[i] + ",");
+		System.out.println("");  */
+		
 	}
 	
 	
@@ -148,9 +186,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		//START OUTPUT STREAM
 		logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
-				"Aero" + File.separator + "Images" + File.separator + startDate + "_log.txt");
+				"Aero" + File.separator + "LogFiles" + File.separator + startDate + "_log.txt");
 		
-		// Create "Images" folder if it does not exist:
+		// Create "LogFiles" folder if it does not exist:
 		try {
 			Files.createDirectories(logPath.getParent());
 		} catch (IOException e2) {
@@ -166,7 +204,7 @@ public class MainWindow extends JPanel implements PacketListener {
         	System.err.println("Could not create file: " + logPath);
         }
         
-        String s = "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt,latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+        String s = "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
         
         try {
             Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
@@ -179,16 +217,17 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 	}
 
+
 	private void logData() {
 		
 		//Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
 		LocalDateTime now = LocalDateTime.now();
 		
-		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + targeter.curGPSPosition.getSecond() + "." + targeter.curGPSPosition.getMilliSecond() + ","  + now.getHour() 
-					+ "." + now.getMinute() +"."+ now.getSecond() +"."+ now.get(ChronoField.MILLI_OF_SECOND) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
+		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() +targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
+					+ "." + now.getMinute() +"."+ (now.getSecond() + now.get(ChronoField.MILLI_OF_SECOND)/1000.0) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
 					+ "," + String.format("%.4f",videoFeed.rollAng) + "," + String.format("%.4f",videoFeed.pitchAng) + "," + String.format("%.4f",videoFeed.airSpd) + "," 
 					+ String.format("%.4f",videoFeed.altitude) + "," + String.format("%.4f",videoFeed.lattitude) + ","	+ String.format("%.4f",videoFeed.longitude) + "," 
-					+ String.format("%.3f",targeter.curGPSPosition.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
+					+ String.format("%.3f",targeter.heading) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
 					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDrop) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
 					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "\n";
@@ -283,6 +322,23 @@ public class MainWindow extends JPanel implements PacketListener {
 					}
 				}
 			});
+			
+			btnToggleLogging.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					
+					if(threadTimer.isRunning())
+						threadTimer.stop(); //note: by default Coalescing is on, meaning that it won't queue events
+					else
+					{	
+						initLogging();
+						threadTimer.start();
+					}
+						
+					
+				}
+			});
+			
+		
 			
 			//when 'Enable/Disable Resets' Pressed
 			btnEnable.addActionListener(new ActionListener() {
@@ -387,6 +443,8 @@ public class MainWindow extends JPanel implements PacketListener {
 					serialComm.write('q');  //send the command to plane
 					planeMessageConsole.println("Restart sent."); 
 					dataLoggerTextArea.setText("");  //delete old text
+					videoFeed.changeDropStatus(false);	
+					targeter.setDropStatus(false);
 					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 				}
 			});
@@ -465,9 +523,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		JPanel dataPanel = new JPanel();
 		dataPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
 		dataPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		Font dataPanelFont = new Font(Font.SANS_SERIF, 0, 18);
+		Font dataPanelFont = new Font(Font.SANS_SERIF, 0, 16);
 		dataPanel.setFont(dataPanelFont);
-		JLabel roll, pitch, speed, alt, latt, longit, head, sec, ms, altAtDrop;
+		JLabel roll, pitch, speed, alt, head, sec, ms, altAtDrop;
 		roll = new JLabel("Roll:");
 		roll.setFont(dataPanelFont);
 		pitch = new JLabel("Pitch:");
@@ -476,10 +534,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		speed.setFont(dataPanelFont);
 		alt = new JLabel("Alt:");
 		alt.setFont(dataPanelFont);
-		latt = new JLabel("\nLatt:");
-		latt.setFont(dataPanelFont);
-		longit = new JLabel("Long:");
-		longit.setFont(dataPanelFont);
 		head = new JLabel("Heading:");
 		head.setFont(dataPanelFont);
 		sec = new JLabel("Time:");
@@ -489,18 +543,25 @@ public class MainWindow extends JPanel implements PacketListener {
 		altAtDrop = new JLabel("Alt at Drop:");
 		altAtDrop.setFont(dataPanelFont);
 
+		
+		dataPanelFont = new Font(Font.SANS_SERIF, Font.BOLD, 16);  //change values to bolded
 
 		//If wanted to clean this up make an array of JLabels...
 		lblRoll = new JLabel("");
+		lblRoll.setFont(dataPanelFont);
 		lblPitch = new JLabel("");
+		lblPitch.setFont(dataPanelFont);
 		lblSpeed = new JLabel("");
+		lblSpeed.setFont(dataPanelFont);
 		lblAlt = new JLabel("");
-		lblLatt = new JLabel("");
-		lblLong = new JLabel("");
+		lblAlt.setFont(dataPanelFont);
 		lblHead = new JLabel("");
-		lblSec = new JLabel("");
-		lblMs = new JLabel("");
+		lblHead.setFont(dataPanelFont);
+		lblTS = new JLabel("");
+		lblTS.setFont(dataPanelFont);
 		lblAltAtDrop = new JLabel("");
+		lblAltAtDrop.setFont(dataPanelFont);
+
 		
 		
 		//lblRoll.setForeground(Color.GREEN);  //left as sample how to change font colour
@@ -513,20 +574,15 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataPanel.add(lblSpeed);
 		dataPanel.add(alt);
 		dataPanel.add(lblAlt);
-		
-		dataPanel.add(latt);
-		dataPanel.add(lblLatt);
-		dataPanel.add(longit);
-		dataPanel.add(lblLong);
 		dataPanel.add(head);
 		dataPanel.add(lblHead);
 		dataPanel.add(sec);
-		dataPanel.add(lblSec);
-		dataPanel.add(ms);
-		dataPanel.add(lblMs);		
+		dataPanel.add(lblTS);
 		dataPanel.add(altAtDrop);
 		dataPanel.add(lblAltAtDrop);
 		
+		
+
 		
 		
 		
@@ -548,6 +604,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnClearData = new JButton("Clear");
 		commPortControlPanel.add(btnClearData);
+		
+		btnToggleLogging = new JButton("Toggle Logging");
+		commPortControlPanel.add(btnToggleLogging);
 		commPortControlPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 
 		
@@ -663,6 +722,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		updateCommPortSelector();
 		
 		
+
+		
 		//RIGHT HAND SIDE
 		JPanel rightPanel = new JPanel();
 		rightPanel.setLayout(new GridBagLayout());  //changed from 4 rows to 5 rows, to move dataLogger to left side
@@ -729,9 +790,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private void analyzePacket (String str, byte[] byteArray, int byteArrayInd) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		
-			//with bytewise representation
-			//http://stackoverflow.com/questions/13469681/how-to-convert-4-bytes-array-to-float-in-java
-			//something like 
+			
 		if(byteArrayInd >= 0){	//non negative indicates data packet (data packets the string stuff is weird
 			
 			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
@@ -750,10 +809,8 @@ public class MainWindow extends JPanel implements PacketListener {
 			}
 			
 			//extract time values
-			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
 			timeArr[1] = extractuInt16(byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
-
-			
+			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
 			
 			
 			/*Old method
@@ -786,21 +843,17 @@ public class MainWindow extends JPanel implements PacketListener {
 			dblArr[5] *= -1;		//acount for the fact it should have 'W' attached (western hemisphere == negative longitude)
 			
 			//print to status area (top left)
-			lblRoll.setText(""+dblArr[0]);  
-			lblPitch.setText(""+dblArr[1]);
-			lblAlt.setText(""+dblArr[2]);
-			lblSpeed.setText(""+dblArr[3]);
-			lblLatt.setText(""+dblArr[4]);  
-			lblLong.setText(""+dblArr[5]);
-			lblHead.setText(""+dblArr[6]);  
-			lblSec.setText(""+timeArr[0]);
-			lblMs.setText(""+timeArr[1]);
+			lblRoll.setText(""+dblArr[0]);  lblPitch.setText(""+dblArr[1]);	lblAlt.setText(""+dblArr[2]);	lblSpeed.setText(""+dblArr[3]);	
+			lblHead.setText(""+dblArr[6]);  lblTS.setText(""+(timeArr[0]+timeArr[1]/1000.0));	
 			
+			
+			LocalDateTime now = LocalDateTime.now();
+
 			//print to logging screen
 			dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
-									+ "," + + timeArr[0] + "." + timeArr[1]  );
+									+ "," + (timeArr[0]+timeArr[1]/1000.0) );
 			
-			//Update data in VideoFeed Class (it separately logs, 
+			//Update data in VideoFeed Class 
 			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
 						
 			//update targeting stuff
@@ -809,7 +862,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			
 		}
 		else if (str.substring(0, 1).equals("a")) {  //have requested the altitude at drop be returned
-			String altAsString = str.substring(str.indexOf("a") + 1);  //remove *a from front
+			String altAsString = str.substring(str.indexOf("a") + 1);  //remove a from front
 			altAsString = altAsString.substring(0, altAsString.indexOf("%"));  //remove % from end
 			double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
 			planeMessageConsole.println("Altitude at drop = " + altitudeAtDrop);  //print result to console

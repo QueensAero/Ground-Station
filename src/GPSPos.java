@@ -6,6 +6,7 @@ public class GPSPos {
 	private double altitude; // In meters
 	
 	private double heading; // In degrees (E = 0, N = 90, W = 180, S = 270)
+	private double mathAngle;  //in polar coordinates
 	private int second, milliSecond;  //timestamp (only need when this class is used to hold base point recieved from GPS)
 	
 	private int utmZone;
@@ -22,7 +23,8 @@ public class GPSPos {
 		this.altitude = altitude;
 		this.second = sec;
 		this.milliSecond = ms;
-		heading = heading2MathAngle(direction);
+		this.heading = direction;
+		mathAngle = heading2MathAngle(direction);
 		convertDeg2UTM(decimalDegMin2Degree(lat), decimalDegMin2Degree(lon)); // Updates all utm attributes
 		
 	}
@@ -34,21 +36,24 @@ public class GPSPos {
 	{
 		this.velocity = velocity;
 		this.altitude = altitude;
-		heading = heading2MathAngle(direction);
+		this.heading = direction;
+		mathAngle = heading2MathAngle(direction);
+		
 		this.utmZone = utmZone;
 		this.utmLetter = utmLetter;
 		this.utmNorthing = utmNorthing;
 		this.utmEasting = utmEasting;
 		this.second = sec;
 		this.milliSecond = ms;
-
+		
 	}
 	
 	
 	
 	public double getVelocity() { return velocity;	}
 	public double getAltitude() { return altitude; }
-	public double getHeading() { return heading; }
+	public double getHeading() { return heading;  }
+	public double getMathAngle() { return mathAngle; }
 	public double getUTMEasting() { return utmEasting; }
 	public double getUTMNorthing() { return utmNorthing; }
 	public int getUTMZone() { return utmZone; }

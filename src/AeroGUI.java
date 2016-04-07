@@ -49,8 +49,11 @@ public class AeroGUI {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout());
 		
+		
 		//declare Serial Communicator class
 		SerialCommunicator sc = new SerialCommunicator();
+		
+
 		
 		//declare mainwindow class, passing the SC instance to it
 		main = new MainWindow(sc);

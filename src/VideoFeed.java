@@ -97,7 +97,7 @@ public class VideoFeed extends JPanel{
 	public double lattitude, longitude;
 	public int  second, millisec;
 	public boolean isDropped = false;  
-	public double altAtDrop = 0, heading = 0; //whether the payload has been dropped
+	public double altAtDrop = 0, heading = 270; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false;
 	public int currentRecordingFN = 0;
 	public double frameRate = 0;
@@ -257,8 +257,9 @@ public class VideoFeed extends JPanel{
 		  
 		streamActive = false; //will be set to TRUE if function below is sucessful. 
 		
+		boolean usingCV = false;
 		//OpenCV Dependance (can comment out and below should be fine, though without video stream)
-		img = getImageCV(); boolean usingCV = true;
+		img = getImageCV(); usingCV = true;
 		
 		if(!usingCV)
 			img = getImageNonCV();
