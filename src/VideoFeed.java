@@ -280,8 +280,13 @@ public class VideoFeed extends JPanel{
     @Override
 	public void paintComponent(Graphics g) {
 
+
+		
     	if(img != null)
     	{
+    		super.paintComponent(g); //prevents repainting
+
+    		
         	//create a graphics object from the img, which will be edited -> this allows the edited image to be saved
     		Graphics2D modifiedFrame = (Graphics2D) g;
     		
@@ -293,6 +298,7 @@ public class VideoFeed extends JPanel{
 			scaleFactorx = ((double)this.getWidth()) / ((double)cols); // Maximum possible horizontal scaling factor
 			scaleFactor = Math.min(scaleFactorx, scaleFactory); // Do not distort image, scale by same amount in both directions
 			
+					
 			// Apply scaling trasnform:
 			AffineTransform saveXform = modifiedFrame.getTransform(); // Save current transform so it can be restored afterward
 			AffineTransform scaleXform = new AffineTransform();
@@ -343,14 +349,15 @@ public class VideoFeed extends JPanel{
     }
     
     private BufferedImage getImageNonCV(){
-	 	//return  new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
-    	BufferedImage bi = null;
+	 	return  new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
+    	
+    	/*BufferedImage bi = null;
     	try {
     		bi = ImageIO.read(new File("plane.png")); // for testing without openCV (Just a png that I was using with the same dimensions as the video stream)
     	} catch(IOException e) {
     		
     	}
-    	return bi;
+    	return bi;  */
     } 
 	
 	int maxFrames = 100000;  //@ 30 FPS = ~ 1 hour and @100Kb/frame = 10 GB of frames
