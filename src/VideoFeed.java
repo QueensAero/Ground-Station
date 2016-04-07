@@ -9,6 +9,7 @@ import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
@@ -282,15 +283,31 @@ public class VideoFeed extends JPanel{
     	if(img != null)
     	{
         	//create a graphics object from the img, which will be edited -> this allows the edited image to be saved
-    		Graphics2D modifiedFrame = img.createGraphics();
+    		Graphics2D modifiedFrame = (Graphics2D) g;
+    		
+			// Calculate Scaling Factor:
+			double scaleFactor = 1;
+			double scaleFactorx = 1;
+			double scaleFactory = 1;
+			scaleFactory = ((double)this.getHeight()) / ((double)totRows); // Maximum possible vertical scaling factor
+			scaleFactorx = ((double)this.getWidth()) / ((double)cols); // Maximum possible horizontal scaling factor
+			scaleFactor = Math.min(scaleFactorx, scaleFactory); // Do not distort image, scale by same amount in both directions
+			
+			// Apply scaling trasnform:
+			AffineTransform saveXform = modifiedFrame.getTransform(); // Save current transform so it can be restored afterward
+			AffineTransform scaleXform = new AffineTransform();
+			scaleXform.scale(scaleFactor, scaleFactor);
+			modifiedFrame.transform(scaleXform); // Apply scaling transform
+    		
+			
+			modifiedFrame.drawImage(img, 0, 0, null);
+    		//Graphics2D modifiedFrame = img.createGraphics();
   	
 			speedGauge.draw(modifiedFrame);
 			altGauge.draw(modifiedFrame);
 			compassGauge.draw(modifiedFrame);
 			modifiedFrame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
 			modifiedFrame.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);  //make the text looke nice
-
-		
 			
 			if(isDropped)
 			{
@@ -315,21 +332,26 @@ public class VideoFeed extends JPanel{
 
 		
 			doRecording(modifiedFrame);
-					
-						  
+								  
 			drawHorizon(modifiedFrame);
-			
-			//draw the image to the screen
-			g.drawImage(img, 0, 0, null);
-    	}
-    	else
-    		System.out.println("No image to render");    	
 
-	}
+			modifiedFrame.setTransform(saveXform); // Restore initial transform
+    	} else {
+    		System.out.println("No image to render");
+    	}
+
+    }
     
     private BufferedImage getImageNonCV(){
-	 	return  new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR); 
-	 } 
+	 	//return  new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
+    	BufferedImage bi = null;
+    	try {
+    		bi = ImageIO.read(new File("plane.png")); // for testing without openCV (Just a png that I was using with the same dimensions as the video stream)
+    	} catch(IOException e) {
+    		
+    	}
+    	return bi;
+    } 
 	
 	int maxFrames = 100000;  //@ 30 FPS = ~ 1 hour and @100Kb/frame = 10 GB of frames
     private void doRecording(Graphics temp)
