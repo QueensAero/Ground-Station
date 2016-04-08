@@ -65,7 +65,7 @@ public class Targeter extends JPanel {
 	//GPSPos objects (initialize positions to some offset from target. Currently target is a pt behind ILC
 	//double targetLatt = 4413.7167, targetLong = -7629.4883;  //behind ILC
 	//double targetLatt = 4413.64328, targetLong = -7629.33616;  //fence post or far basebaal diamond
-	double targetLatt = 4413.711   ,targetLong = -7629.507;    //from phone GPS
+	double targetLatt = 4413.711, targetLong = -7629.507;    //from phone GPS
 
 	public GPSPos baseGPSposition; 
 	public GPSPos curGPSPosition; 
@@ -103,6 +103,12 @@ public class Targeter extends JPanel {
 	
 	}
 	
+	public void setTargetPos(double targetLat, double targetLon) {
+		targetPos = new GPSPos(targetLat, targetLon, 0, 0, 0, 0, 0);
+		GSPTargeting.setTargetPos(targetPos);
+	}
+	
+	public GPSPos getTargetPos() { return targetPos; }
 	public double getEstDropPosXMetres() { return estDropPosXMetres; }
 	public double getEstDropPosYMetres() { return estDropPosYMetres; }
 	public double actEstDropPosXMeters() { return actEstDropPosXMeters; }
@@ -427,3 +433,4 @@ public class Targeter extends JPanel {
 		
 	}*/
 }
+

@@ -38,6 +38,15 @@ public class GPSTargeter {
 		timeToDrop = -1;
 	}
 	
+	public void setTargetPos(GPSPos target) {
+		targetPos = target;
+		if(curPos != null && targetPos != null) { // If valid input, carry out calculations
+			// Order matters:
+			latError = computeLateralErr();
+			timeToDrop = timeToDrop();
+		}
+	}
+	
 	/*
 	 * Updates the current position and causes the dropTime prediction to be re-calculated.
 	 */

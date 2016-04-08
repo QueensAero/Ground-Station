@@ -1,34 +1,22 @@
 import java.awt.EventQueue;
-
 import javax.swing.JFrame;
-
 import java.awt.BorderLayout;
-
 import javax.swing.UIManager;
-
-
-
-
 
 public class AeroGUI {
 	//member variables
 	private static MainWindow main;
 	private JFrame frame;
 	
-
-
 	/** MAIN - Launches the application.	 */
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				
-							
 				try {
 					UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 					AeroGUI window = new AeroGUI();  //create an instance of AeroGUI class
 					window.frame.setVisible(true);  //set the GUI to visiable
-					
-					
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -53,10 +41,8 @@ public class AeroGUI {
 		//declare Serial Communicator class
 		SerialCommunicator sc = new SerialCommunicator();
 		
-
-		
 		//declare mainwindow class, passing the SC instance to it
-		main = new MainWindow(sc);
+		main = new MainWindow(sc, frame);
 		
 		frame.getContentPane().add(main, BorderLayout.CENTER);
 		
@@ -71,15 +57,8 @@ public class AeroGUI {
 		    	main.planeMessageConsole.close();  
 		    	main.dataLogger.close();
 		    	
-		    	
 		    	System.exit(0);  //terminate the program		        
 		    }
 		});
 	}
-	
-	
-	
-
 }
-
-
