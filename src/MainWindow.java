@@ -41,6 +41,7 @@ import javax.swing.BoxLayout;
 import javax.swing.InputMap;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -72,15 +73,18 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnEnterBypass, btnRestartStream;  //button to start/stop recording
+	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
 	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
 	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblHead, lblTS, lblAltAtDrop; //labels to display the values
+	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
 	long connectTime;
 	boolean btnsEnabled = false;
-	
+	private JFrame parentFrame;
+	private GPSTargetDialog gpsTargetDialog;
 	//thread variables
 	Timer threadTimer; 
 	
@@ -92,7 +96,7 @@ public class MainWindow extends JPanel implements PacketListener {
 
 	
 	//constructor
-	public MainWindow (SerialCommunicator sc) {
+	public MainWindow (SerialCommunicator sc, JFrame frame) {
 		serialComm = sc;
 
 		initializeComponents();
@@ -107,6 +111,10 @@ public class MainWindow extends JPanel implements PacketListener {
 		  
 		  
 		threadTimer = new Timer(100, loggingAL);  //33 ms ~30FPS
+		
+		parentFrame = frame;
+		gpsTargetDialog = new GPSTargetDialog(frame, "GPS Target", this);
+		gpsTargetDialog.pack();
 		
 		//Uncomment to having logging start at program start (DO THIS FOR COMPETITION)
 		//initLogging();
@@ -479,6 +487,12 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
+			btnUpdateTarget.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					gpsTargetDialog.setVisible(true);
+				}
+			});
+			
 			
 	}/* END INITIALIZE BUTTONS */
 	
@@ -502,7 +516,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		/***** Left Side: *****/
 		JPanel leftPanel = new JPanel();
 		leftPanel.setLayout(new GridBagLayout());
-		leftPanel.setBackground(Color.CYAN);
 		// Minimum width is required to ensure that left panel displays properly.
 		// If frame isn't big enough, take space away from right Panel
 		leftPanel.setMinimumSize(new Dimension(650, 700));
@@ -550,6 +563,40 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		leftPanel.add(servoPanel, c);
 		
+		// gpsTargetPanel
+		JPanel gpsTargetPanel = new JPanel();
+		gpsTargetPanel.setBorder(new TitledBorder(new EtchedBorder(), "GPS Target Location"));
+		gpsTargetPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		gpsTargetPanel.setMinimumSize(new Dimension(650, 60));
+		gpsTargetPanel.setPreferredSize(new Dimension(650, 60));
+		Font gpsTargetPanelFont = new Font(Font.SANS_SERIF, 0, 16);
+		gpsTargetPanel.setFont(gpsTargetPanelFont);
+		JLabel latLabel, lonLabel;
+		latLabel = new JLabel("Latitude:");
+		latLabel.setFont(gpsTargetPanelFont);
+		lonLabel = new JLabel("Longitude:");
+		lonLabel.setFont(gpsTargetPanelFont);
+		gpsTargetPanelFont = new Font(Font.SANS_SERIF, Font.BOLD, 16);  //change values to bolded
+		lblLat = new JLabel("");
+		lblLat.setFont(gpsTargetPanelFont);
+		lblLon = new JLabel("");
+		lblLon.setFont(gpsTargetPanelFont);
+		btnUpdateTarget = new JButton("Update Target");
+		gpsTargetPanel.add(btnUpdateTarget);
+		gpsTargetPanel.add(latLabel);
+		gpsTargetPanel.add(lblLat);
+		gpsTargetPanel.add(lonLabel);
+		gpsTargetPanel.add(lblLon);
+		gpsTargetPanel.add(btnUpdateTarget);
+		c.gridx = 0;
+		c.gridy = 3;
+		c.gridwidth = 1;
+		c.gridheight = 1;
+		c.weightx = 1;
+		c.weighty = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		leftPanel.add(gpsTargetPanel, c);
+		
 		// planeMessagePanel
 		JPanel planeMessagePanel = new JPanel(); //Panel containing the plane messages
 		planeMessagePanel.setBorder(new TitledBorder(new EtchedBorder(), "Plane Messages"));
@@ -564,7 +611,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		planeMessageCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 		planeMessagePanel.add(planeMessageScroller);
 		c.gridx = 0;
-		c.gridy = 3;
+		c.gridy = 4;
 		c.gridwidth = 1;
 		c.gridheight = 1;
 		c.weightx = 1;
@@ -589,7 +636,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		System.setErr(console);
 		consolePanel.add(consoleScroller);
 		c.gridx = 0;
-		c.gridy = 4;
+		c.gridy = 5;
 		c.gridwidth = 1;
 		c.gridheight = 1;
 		c.weightx = 1;
@@ -615,14 +662,13 @@ public class MainWindow extends JPanel implements PacketListener {
 		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
 		dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 		c.gridx = 0;
-		c.gridy = 5;
+		c.gridy = 6;
 		c.gridwidth = 1;
 		c.gridheight = 1;
 		c.weightx = 1;
 		c.weighty = 1;
 		c.fill = GridBagConstraints.BOTH;
 		leftPanel.add(logPanel, c);
-		
 		
 		
 		/***** Right Side: *****/
@@ -655,6 +701,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		horizSplitPane.setOneTouchExpandable(true);
 
 		this.add(horizSplitPane, BorderLayout.CENTER);
+		
+		lblLat.setText(Double.toString(targeter.getTargetPos().getLatitude()));
+		lblLon.setText(Double.toString(targeter.getTargetPos().getLongitude()));
 	}
 	
 	private JPanel initializeServoButtonPanel() {
@@ -792,6 +841,13 @@ public class MainWindow extends JPanel implements PacketListener {
 		dataPanel.add(lblAltAtDrop);
 		
 		return dataPanel;
+	}
+	
+	// Called by the gps target dialog:
+	public void updateGPSTarget(Double lat, Double lon) {
+		lblLon.setText(Double.toString(lon));
+		lblLat.setText(Double.toString(lat));
+		targeter.setTargetPos(lat,  lon);
 	}
 	
 	//called from SerialCommunicator?
