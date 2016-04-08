@@ -1,7 +1,10 @@
 
 
 public class GPSPos {
-
+	
+	private double latitude;
+	private double longitude;
+	
 	private double velocity; // In m/s
 	private double altitude; // In meters
 	
@@ -19,6 +22,8 @@ public class GPSPos {
 	 */
 	public GPSPos(double lat, double lon, double velocity, double altitude, double direction, int sec, int ms)
 	{
+		this.latitude = lat;
+		this.longitude = lon;
 		this.velocity = velocity;
 		this.altitude = altitude;
 		this.second = sec;
@@ -34,6 +39,10 @@ public class GPSPos {
 	 */
 	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocity, double altitude, double direction, int sec, int ms)
 	{
+		// Haven't bothered to calculate latitude and longitude given UTM coords:
+		latitude = 0;
+		longitude = 0;
+		
 		this.velocity = velocity;
 		this.altitude = altitude;
 		this.heading = direction;
@@ -49,7 +58,8 @@ public class GPSPos {
 	}
 	
 	
-	
+	public double getLatitude() {return latitude; };
+	public double getLongitude() {return longitude; };
 	public double getVelocity() { return velocity;	}
 	public double getAltitude() { return altitude; }
 	public double getHeading() { return heading;  }
