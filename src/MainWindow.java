@@ -194,16 +194,30 @@ public class MainWindow extends JPanel implements PacketListener {
 				
 		
 		//START OUTPUT STREAM
-		logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
-				"Aero" + File.separator + "LogFiles" + File.separator + startDate + "_log.txt");
+		//logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
+		//		"Aero" + File.separator + "LogFiles" + File.separator + startDate + "_log.txt");
 		
+		JFileChooser logFile = new JFileChooser();
+        logFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
+        logFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        int val = logFile.showSaveDialog(null);
+        if (val == JFileChooser.APPROVE_OPTION) {                		
+        	String filename = logFile.getSelectedFile().toString();
+        	try {
+        	if (logFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
+        		filename += ".txt";
+        	} catch (Exception err) {}
+        	logPath = Paths.get(filename);
+        }
+		
+		/*
 		// Create "LogFiles" folder if it does not exist:
 		try {
 			Files.createDirectories(logPath.getParent());
 		} catch (IOException e2) {
 			System.err.println("Could not create directory: " + logPath.getParent());
 		}
-		
+		*/
 		// Create log file:
         try {
             Files.createFile(logPath);
@@ -212,7 +226,6 @@ public class MainWindow extends JPanel implements PacketListener {
         } catch (IOException e) {
         	System.err.println("Could not create file: " + logPath);
         }
-        
         String s = "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
         
         try {
