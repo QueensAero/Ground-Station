@@ -65,7 +65,6 @@ public class Targeter extends JPanel {
 	//GPSPos objects (initialize positions to some offset from target. Currently target is a pt behind ILC
 	//double targetLatt = 4413.7167, targetLong = -7629.4883;  //behind ILC
 	//double targetLatt = 4413.64328, targetLong = -7629.33616;  //fence post or far basebaal diamond
-	double targetLatt = 4413.711, targetLong = -7629.507;    //from phone GPS
 
 	public GPSPos baseGPSposition; 
 	public GPSPos curGPSPosition; 
@@ -77,8 +76,7 @@ public class Targeter extends JPanel {
 	public Targeter() {
 		
 		//set size of JPanel
-		Dimension size = new Dimension(JPANEL_WIDTH, rows);
-		this.setPreferredSize(size);
+		this.setMinimumSize(new Dimension(550, rows));
 		
 		
 		

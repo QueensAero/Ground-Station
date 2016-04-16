@@ -74,8 +74,8 @@ import java.nio.file.StandardOpenOption;
 public class VideoFeed extends JPanel{
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
-	private final static int vidRows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
-	//private final static int vidRows = 576, cols = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
+	//private final static int vidRows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private final static int vidRows = 576, cols = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
 	
 	private final static int fpRows = 150, totRows = fpRows + vidRows;
 	//note: there are ~1000 vertical pixels to work with.  This takes up 150+576 = 776, leaving ~250 for other stuff

@@ -1,9 +1,13 @@
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+
+
 
 
 import javax.swing.JPanel;
@@ -72,7 +76,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
-	private JButton btnStartRecording, btnEnterBypass, btnRestartStream;  //button to start/stop recording
+	private JButton btnStartRecording, btnEnterBypass, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
@@ -490,7 +494,17 @@ public class MainWindow extends JPanel implements PacketListener {
 			btnRestartStream.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					
-					videoFeed.restartVideoStream();
+					videoFeed.restartVideoStream();   //OpenCV Dependance
+				}
+			});
+			
+			btnResetDrop.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					
+					lblAltAtDrop.setText(" ");
+					videoFeed.changeDropStatus(false);	
+					targeter.setDropStatus(false);
+					
 				}
 			});
 			
@@ -531,15 +545,19 @@ public class MainWindow extends JPanel implements PacketListener {
 		leftPanel.setLayout(new GridBagLayout());
 		// Minimum width is required to ensure that left panel displays properly.
 		// If frame isn't big enough, take space away from right Panel
-		leftPanel.setMinimumSize(new Dimension(650, 700));
+		int minWidth = 650;
+		leftPanel.setMinimumSize(new Dimension(minWidth, 700));
+		GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+		int preferredWidth = gd.getDisplayMode().getWidth()/2;  //half of screen width
+		leftPanel.setPreferredSize(new Dimension(preferredWidth, 700));
 		
 		// Constraint object used for all panels within leftPanel:
 		GridBagConstraints c = new GridBagConstraints();
 		
 		// dataPanel:
 		JPanel dataPanel = initializeDataPanel(); // Top left panel containing roll, pitch, speed , altitude, etc.
-		dataPanel.setMinimumSize(new Dimension(650, 50));
-		dataPanel.setPreferredSize(new Dimension(650, 50));
+		dataPanel.setMinimumSize(new Dimension(minWidth, 50));
+		dataPanel.setPreferredSize(new Dimension(preferredWidth, 50));
 		c.gridx = 0;
 		c.gridy = 0;
 		c.gridwidth = 1;
@@ -552,7 +570,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		// commPortControlPanel:
 		//Panel containing connect/disconnect/refresh buttons for connecting to Comm Port
 		JPanel commPortControlPanel = initializeCommPortControlPanel();
-		commPortControlPanel.setMinimumSize(new Dimension(650, 80));
+		commPortControlPanel.setMinimumSize(new Dimension(minWidth, 80));
 		commPortControlPanel.setPreferredSize(new Dimension(650, 80));
 		c.gridx = 0;
 		c.gridy = 1;
@@ -565,7 +583,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		// servoButtonPanel
 		JPanel servoPanel = initializeServoButtonPanel();
-		servoPanel.setMinimumSize(new Dimension(650, 100));
+		servoPanel.setMinimumSize(new Dimension(minWidth, 100));
 		servoPanel.setPreferredSize(new Dimension(650, 100));
 		c.gridx = 0;
 		c.gridy = 2;
@@ -580,8 +598,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		JPanel gpsTargetPanel = new JPanel();
 		gpsTargetPanel.setBorder(new TitledBorder(new EtchedBorder(), "GPS Target Location"));
 		gpsTargetPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		gpsTargetPanel.setMinimumSize(new Dimension(650, 60));
-		gpsTargetPanel.setPreferredSize(new Dimension(650, 60));
+		gpsTargetPanel.setMinimumSize(new Dimension(minWidth, 60));
+		gpsTargetPanel.setPreferredSize(new Dimension(preferredWidth, 60));
 		Font gpsTargetPanelFont = new Font(Font.SANS_SERIF, 0, 16);
 		gpsTargetPanel.setFont(gpsTargetPanelFont);
 		JLabel latLabel, lonLabel;
@@ -614,8 +632,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		JPanel planeMessagePanel = new JPanel(); //Panel containing the plane messages
 		planeMessagePanel.setBorder(new TitledBorder(new EtchedBorder(), "Plane Messages"));
 		planeMessagePanel.setLayout(new BorderLayout());
-		planeMessagePanel.setMinimumSize(new Dimension(650, 60));
-		planeMessagePanel.setPreferredSize(new Dimension(650, 200));
+		planeMessagePanel.setMinimumSize(new Dimension(minWidth, 60));
+		planeMessagePanel.setPreferredSize(new Dimension(preferredWidth, 200));
 		planeMessageTextArea = new JTextArea();
 		JScrollPane planeMessageScroller = new JScrollPane(planeMessageTextArea);
 		planeMessageConsole = new PrintStream(new TextAreaOutputStream(planeMessageTextArea));
@@ -636,8 +654,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		//Panel containing the console (System.out is mapped to here)
 		JPanel consolePanel = new JPanel();
 		consolePanel.setBorder(new TitledBorder(new EtchedBorder(), "Console"));
-		consolePanel.setMinimumSize(new Dimension(650, 60));
-		consolePanel.setPreferredSize(new Dimension(650, 200));
+		consolePanel.setMinimumSize(new Dimension(minWidth, 60));
+		consolePanel.setPreferredSize(new Dimension(preferredWidth, 200));
 		consoleTextArea = new JTextArea();
 		JScrollPane consoleScroller = new JScrollPane(consoleTextArea);
 		console = new PrintStream(new TextAreaOutputStream(consoleTextArea));
@@ -661,8 +679,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		//panel cotaining the data logging
 		JPanel logPanel = new JPanel();
 		logPanel.setLayout(new BorderLayout());
-		logPanel.setMinimumSize(new Dimension(650, 60));
-		logPanel.setPreferredSize(new Dimension(650, 200));
+		logPanel.setMinimumSize(new Dimension(minWidth, 60));
+		logPanel.setPreferredSize(new Dimension(preferredWidth, 200));
 		dataLoggerTextArea = new JTextArea();
 		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
 		dataLoggerTextArea.setMinimumSize(new Dimension(640, 300));	//added, don't think it does anything
@@ -747,11 +765,16 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnRequestAltAtDrop = new JButton("Get Alt @ Drop");
 		servoButtonPanel.add(btnRequestAltAtDrop);
 		
+		btnResetDrop = new JButton("Reset Drop");
+		servoButtonPanel.add(btnResetDrop);		
+		
 		btnStartRecording = new JButton("Start/Stop Recording");
 		servoButtonPanel.add(btnStartRecording);
 		
 		btnRestartStream = new JButton("Restart Video");
 		servoButtonPanel.add(btnRestartStream);
+		
+		
 		
 		return servoButtonPanel;
 	}
@@ -765,28 +788,28 @@ public class MainWindow extends JPanel implements PacketListener {
 		c2.gridy = 0;
 		c2.gridwidth = 3;
 		c2.gridheight = 1;
-		c2.weightx = 1;
+		c2.weightx = 0;
 		c2.weighty = 0;
-		c2.anchor = GridBagConstraints.LINE_START;
+		c2.anchor = GridBagConstraints.CENTER;
 		commPortSelector = new JComboBox();
 		commPortControlPanel.add(commPortSelector, c2);
 		updateCommPortSelector();
-		c2.gridx = 0;
+		c2.gridx = 1;
 		c2.gridy = 1;
 		c2.gridwidth = 1;
 		c2.gridheight = 1;
 		c2.anchor = GridBagConstraints.CENTER;
 		btnRefresh = new JButton("Refresh");
 		commPortControlPanel.add(btnRefresh, c2);
-		c2.gridx = 1;
+		c2.gridx = 2;
 		c2.gridy = 1;
 		btnConnect = new JButton("Connect");
 		commPortControlPanel.add(btnConnect, c2);
-		c2.gridx = 2;
+		c2.gridx = 3;
 		c2.gridy = 1;
 		btnClearData = new JButton("Clear");
 		commPortControlPanel.add(btnClearData, c2);
-		c2.gridx = 3;
+		c2.gridx = 4;
 		c2.gridy = 1;
 
 		btnToggleLogging = new JButton("Toggle Logging");

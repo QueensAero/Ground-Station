@@ -120,7 +120,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		//Why not just do: serialPort = (SerialPort) selectedPortIdentifier.open(this.getClass().getName(), timeout);
     		
     		//set parameters (Baud rate, #data bits, # stop bits, bit parity
-    		serialPort.setSerialPortParams(9600,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+    		serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
     		
     		
     		//update status bool and print success to console
@@ -151,6 +151,29 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     
     public boolean bypassModeRoutine(){
     	
+    	//switch to 9600 baudrate, which is required to send the command
+    	try {
+			serialPort.setSerialPortParams(9600,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+		} catch (UnsupportedCommOperationException e1) {	}
+    	
+    	//simply send the command and hope it works
+		enterBypassMode();	
+
+		//get rid of any garbage in the buffer
+    	flushInputBuffer();		
+
+    	
+		//change back to desired baudrate 
+		try {
+			serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+		} catch (UnsupportedCommOperationException e1) {	}
+
+    	
+    	return true;
+    	
+    	/*Old routine that used to try and check if in bypass mode by sending the command and waiting to see if there's a response
+    	 
+    	
     	boolean enteredBypassMode = false;
     	
 		try {
@@ -167,7 +190,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 			while(++numTries <= maxNumTries)
 			{
 				enterBypassMode();	
-				System.out.println("test)");
 				enteredBypassMode = checkInBypassMode();
 				
 				if(enteredBypassMode)
@@ -188,7 +210,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 			serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
 		} catch (UnsupportedCommOperationException e1) {	}
 		
-		return enteredBypassMode;
+		return enteredBypassMode;  */
     	
     }
     
