@@ -63,7 +63,7 @@ public class Targeter extends JPanel {
     			ringBaseT = rows/2 -ringOutRadius;  //y coordinate of top left corner
 	
 	//GPSPos objects (initialize positions to some offset from target. Currently target is a pt behind ILC
-	//double targetLatt = 4413.7167, targetLong = -7629.4883;  //behind ILC
+	double targetLatt = 4413.7167, targetLong = -7629.4883;  //behind ILC
 	//double targetLatt = 4413.64328, targetLong = -7629.33616;  //fence post or far basebaal diamond
 
 	public GPSPos baseGPSposition; 
