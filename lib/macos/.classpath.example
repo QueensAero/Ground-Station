@@ -12,5 +12,14 @@
 			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="Aero_GroundStation/lib/macos"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="lib/macos/TTS/cmu_time_awb.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/cmu_us_kal.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/cmudict04.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/cmulex.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/cmutimelex.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/en_us.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/freetts-jsapi10.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/freetts.jar"/>
+	<classpathentry kind="lib" path="lib/macos/TTS/jsapi.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

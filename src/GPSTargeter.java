@@ -30,12 +30,15 @@ public class GPSTargeter {
 	private double latError;
 	private double timeToDrop;
 	
+	private SpeechManager speechManager;
+	
 	
 	public GPSTargeter(GPSPos target) {
 		curPos = null;
 		targetPos = target;
 		latError = -1;
 		timeToDrop = -1;
+		speechManager = new SpeechManager();
 	}
 	
 	public void setTargetPos(GPSPos target) {
@@ -56,6 +59,7 @@ public class GPSTargeter {
 			// Order matters:
 			latError = computeLateralErr();
 			timeToDrop = timeToDrop();
+			speechManager.reportTime(timeToDrop);
 		}
 	}
 	
