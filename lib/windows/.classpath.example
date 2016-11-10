@@ -12,5 +12,14 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/windows/TTS/cmu_time_awb.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/cmu_us_kal.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/cmudict04.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/cmulex.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/cmutimelex.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/en_us.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/freetts-jsapi10.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/freetts.jar"/>
+        <classpathentry kind="lib" path="lib/windows/TTS/jsapi.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
