@@ -1,3 +1,8 @@
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.SourceDataLine;
+
 import com.sun.speech.freetts.Voice;
 import com.sun.speech.freetts.VoiceManager;
 
@@ -7,19 +12,16 @@ import com.sun.speech.freetts.VoiceManager;
  * This class handles creation of new threads for speech and avoids overlaps of speech updates.
  */
 public class SpeechManager {
+	private double FT_TO_METRES = 0.3048;  
+	
 	Voice voice;
 	boolean currentlyReportingTime;
-	long timeOfLastTimeReport;
+	double timeOfLastTimeReport;
 	
-	//
-	// Will not use a queue, because we don't want to report outdated data.
-	// Altitude and countdown get updated much more frequently than we can speak, so just wait for the
-	// first update after we're done talking.
-	// 
-	// - 
-	//
+	Tone toneManager;
 	
 	SpeechManager() {
+		// Stuff for time countdown:
 		VoiceManager voiceManager = VoiceManager.getInstance();
 		voice = voiceManager.getVoice("kevin"); // Kevin has the nicest voice
 		//voice.setRate(60);
@@ -28,42 +30,41 @@ public class SpeechManager {
 		currentlyReportingTime = false;
 		timeOfLastTimeReport = 100;
 		
+		// Stuff for altitude warning tone:
+		try {
+			toneManager = new Tone();
+		} catch (LineUnavailableException e) {
+			// TODO Auto-generated catch block
+			System.err.println("Failed to create Tone.");
+			e.printStackTrace();
+		}
+		toneManager.start();
+		
 	}
 	
 	/**
 	 * Decide whether it is appropriate to report the altitude again,
 	 * and if so then call the speak() function to do so.
 	 * 
-	 * @param altitude - in feet
+	 * @param altitude - in meters
 	 */
-	public void reportAltitude(float altitude) {
-		/*// If already reporting altitude, just wait
-		if(currentlyReportingAltitude) {
-			return;
+	public void reportAltitude(double altitude) {
+		double altFt = altitude / FT_TO_METRES;
+		if(altFt < 100) {
+			toneManager.setCurrentPeriod(50); // Fast tone
+		} else if(altFt < 110) {
+			toneManager.setCurrentPeriod(600); // Slow tone
+		} else {
+			toneManager.setCurrentPeriod(-1); // No tone
 		}
-		
-		// If the altitude is low then this must be reported with high priority
-		if(altitude < 110) {
-			if(!currentlyReporting) {
-				
-		} else { // We are high enough that it is less urgent that we report the altitude
-			
-		}
-		
-		// Only report the altitude if it has been at least 2 seconds since the last report
-		if((System.currentTimeMillis() - timeOfLastAltitudeReport) > 2000) {
-			if(altitude < 110) { // If the altitude is low then this must be reported with high priority
-				if(!currentlyReporting) {
-					
-			} else { // We are high enough that it is less urgent that we report the altitude
-				
-			}
-		}*/
 	}
 	
 	public void reportTime(double time) {
-		// Try to report the time at 10 secs, 5 secs, 4 secs, 3 secs, 2 secs, 1 secs, drop
-		if(	(timeOfLastTimeReport > 10 && time < 10) ||
+		if(time > 13) { // If we are far away reset
+			timeOfLastTimeReport = time;
+			
+			// Try to report the time at 10 secs, 5 secs, 4 secs, 3 secs, 2 secs, 1 secs, drop
+		} else if((timeOfLastTimeReport > 10 && time < 10) ||
 			(timeOfLastTimeReport > 5 && time < 5) ||
 			(timeOfLastTimeReport > 4 && time < 4) ||
 			(timeOfLastTimeReport > 3 && time < 3) ||
@@ -75,9 +76,10 @@ public class SpeechManager {
 				int timeRemaining = (int) Math.round(time);
 				String script = Integer.toString(timeRemaining);
 				speak(script);
+				timeOfLastTimeReport = time;
 			}
 		}
-	}
+	} // End reportTime(...)
 	
 	public synchronized boolean startReportingTime() {
 		if(currentlyReportingTime == true) {
@@ -93,6 +95,7 @@ public class SpeechManager {
 	}
 	
 	private void speak(String script) {
+		// Start a new thread to speak in the background to avoid blocking the program
 		Thread t = new Thread() {
 		    public void run() {
 				voice.speak(script);

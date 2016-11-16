@@ -60,6 +60,7 @@ public class GPSTargeter {
 			latError = computeLateralErr();
 			timeToDrop = timeToDrop();
 			speechManager.reportTime(timeToDrop);
+			speechManager.reportAltitude(curPos.getAltitude());
 		}
 	}
 	

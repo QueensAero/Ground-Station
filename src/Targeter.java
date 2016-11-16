@@ -88,7 +88,7 @@ public class Targeter extends JPanel {
 		  
 	
 		LocalDateTime now = LocalDateTime.now();	//to have a current timestamp
-		double tempInitV = 10, tempInitAltMeters = -0.3, tempInitHeading = 45;   
+		double tempInitV = 10, tempInitAltMeters = 34, tempInitHeading = 45;   
 		int initXOff = -100, initYOff = -95;  //base initial position in meters from target position
 		targetPos = new GPSPos(targetLatt, targetLong,0,0,0,0,0);   //this is currently just behind ILC. NOTE how Long component declared as negative to account for west
 		baseGPSposition = new GPSPos(targetPos.getUTMZone(), targetPos.getUTMLetter(), targetPos.getUTMNorthing()+initYOff, targetPos.getUTMEasting()+initXOff, 
