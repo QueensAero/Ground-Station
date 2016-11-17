@@ -76,7 +76,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
 	private JButton btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
-	private JButton btnStartRecording, btnEnterBypass, btnRestartStream, btnResetDrop;  //button to start/stop recording
+	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
 	public PrintStream planeMessageConsole, dataLogger;
@@ -280,7 +280,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnCloseDropBay.setEnabled(val);
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
-		btnEnterBypass.setEnabled(val);
 		btnRequestAltAtDrop.setEnabled(val);
 		btnsEnabled = val;
 	}
@@ -364,7 +363,6 @@ public class MainWindow extends JPanel implements PacketListener {
 					
 				}
 			});
-			
 		
 			
 			//when 'Enable/Disable Resets' Pressed
@@ -378,14 +376,12 @@ public class MainWindow extends JPanel implements PacketListener {
 							btnSensorReset.setEnabled(true);
 							btnPlaneRestart.setEnabled(true);
 							btnStartRecording.setEnabled(true);
-							btnEnterBypass.setEnabled(true);
 							btnRequestAltAtDrop.setEnabled(true);
 						}
 						else {
 							btnSensorReset.setEnabled(false);
 							btnPlaneRestart.setEnabled(false);
 							btnStartRecording.setEnabled(false);
-							btnEnterBypass.setEnabled(false);
 							btnRequestAltAtDrop.setEnabled(false);
 						}
 					}
@@ -489,14 +485,6 @@ public class MainWindow extends JPanel implements PacketListener {
 				public void actionPerformed(ActionEvent e) {
 					
 					videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
-				}
-			});
-			
-			//when "Send '+++'" pressed
-			btnEnterBypass.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					
-					serialComm.bypassModeRoutine();
 				}
 			});
 			
@@ -763,10 +751,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnCloseDropBay = new JButton("Close Drop Bay");
 		servoButtonPanel.add(btnCloseDropBay);
-		
-		//R Dowlling added
-		btnEnterBypass = new JButton("Enter Bypass");
-		servoButtonPanel.add(btnEnterBypass);
 		
 		btnSensorReset = new JButton("Sensor Reset");
 		servoButtonPanel.add(btnSensorReset);

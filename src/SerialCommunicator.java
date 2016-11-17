@@ -18,9 +18,6 @@ import java.util.TooManyListenersException;
  * Not positive in all comments, but best guesses (I didn't write this code)  
  */
 
-
-
-
 interface PacketListener {
 	void packetReceived(String packet, byte[] byteArray, int byteArrayInd);
 	void invalidPacketReceived(String packet);
@@ -40,26 +37,20 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	private boolean connected = false;
     private InputStream input;
     private OutputStream output;
-    boolean inBypassMode = false;
     
 	final static int timeout = 2000;
 	final static int NEW_LINE_ASCII = 10;
-	final static int BAUD_RATE = 57600;  //57600;  //9600
+	final static int BAUD_RATE = 115200;  //57600;  //9600
 	
 	private StringBuffer received = new StringBuffer();
 	private byte[] receivedBytes = new byte[200];
 	private int byteInd = 0, packetStart = -1, packetEnd = -1;
 	private int firstEndCharInd = -1;
 	
-
-	
 	//constructor
 	public SerialCommunicator() {
 		updatePortList();
-		
-		 
 	}
-	
 	
 	public void removeListener(PacketListener listener) {
 		for (int i = 0; i < listeners.size(); i++) {
@@ -134,92 +125,10 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	
     	//in connected, then call FN to initialize the input and output streams. 
 		if (connected) {
-			if (initStreams() == true) {
-				
-				//this function gets into bypass mode
-				inBypassMode = bypassModeRoutine();				
-				
+			if (initStreams() == true) {			
 				initEventListener();  //add event listeners to input and output streams
 			}
-		
-			
-		
-			
-			
 		}
-    }
-    
-    public boolean bypassModeRoutine(){
-    	
-    	//switch to 9600 baudrate, which is required to send the command
-    	try {
-			serialPort.setSerialPortParams(9600,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-		} catch (UnsupportedCommOperationException e1) {	}
-    	
-    	//simply send the command and hope it works
-		enterBypassMode();	
-
-		//get rid of any garbage in the buffer
-    	flushInputBuffer();		
-
-    	
-		//change back to desired baudrate 
-		try {
-			serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-		} catch (UnsupportedCommOperationException e1) {	}
-
-    	
-    	return true;
-    	
-    	/*Old routine that used to try and check if in bypass mode by sending the command and waiting to see if there's a response
-    	 
-    	
-    	boolean enteredBypassMode = false;
-    	
-		try {
-			serialPort.setSerialPortParams(9600,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-		} catch (UnsupportedCommOperationException e1) {	}
-
-    	
-		int numTries = 0, maxNumTries = 3;
-		
-		enteredBypassMode = checkInBypassMode();
-		
-		if(!enteredBypassMode)
-		{	
-			while(++numTries <= maxNumTries)
-			{
-				enterBypassMode();	
-				enteredBypassMode = checkInBypassMode();
-				
-				if(enteredBypassMode)
-					break;
-			
-			}
-		}
-		
-		if(enteredBypassMode)
-			System.out.println("Successfully entered bypass mode (" + numTries + " tries)");
-		else
-			System.out.println("Hit" + maxNumTries + " tries, didn't enter bypass mode ");
-
-		flushInputBuffer();
-		
-		//change back to desired baudrate 
-		try {
-			serialPort.setSerialPortParams(BAUD_RATE,  SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-		} catch (UnsupportedCommOperationException e1) {	}
-		
-		return enteredBypassMode;  */
-    	
-    }
-    
-    public void enterBypassMode(){
-    	
-		try {
-			output.write("B".getBytes());
-		} catch (IOException e) {		}
-    		
     }
     
     //get rid of everything in input serial buffer (mainly used during enterBypassMode procedure
@@ -232,24 +141,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 		} catch (IOException e) {				}    	
     }
     
-    //if what is sent gets echoed back, this is the behaviour  
-    boolean checkInBypassMode(){
-
-    	flushInputBuffer();		
-    	byte[] waste = new byte[256];
-
-    	try {
-			output.write("o".getBytes());
-			
-			if(input.read(waste) <= 0)
-				return true;
-			else 
-				return false;			
-			
-		} catch (IOException e) {
-		}
-		return false;
-    }
     
     
     /* These next two functions are never used, but are left as a reference.  They can be easily accomplished with XCTU
@@ -438,13 +329,8 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 							firstEndCharInd = byteInd;  //first time through it will set to true. If two adjacent 'e' received, then next time will get into first if. Otherwise will reset this
 						
 						//note seconds are last sent, and they can never be 'e' (since value between 0-60. 
-					
-					}
-	        		
-	        			
-	        	}
-	            
-	                     	
+					}	
+	        	}     	
 	            	
 	        	String temp = received.toString();
 	        	String str; 			            			
