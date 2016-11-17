@@ -75,7 +75,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
-	private JButton btnDrop, btnSensorReset, btnPlaneRestart; //servo control buttons
+	private JButton btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnEnterBypass, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
@@ -277,6 +277,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
+		btnCloseDropBay.setEnabled(val);
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
 		btnEnterBypass.setEnabled(val);
@@ -437,6 +438,14 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
+			// When 'Close Drop Bay' clicked
+			btnCloseDropBay.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('c');
+					planeMessageConsole.println("Close drop bay sent.");
+				}
+			});
+			
 			//this maps the keyboard shortcut CTRL+SHIFT+D to the drop command
 			this.getActionMap().put("dropHandle", new AbstractAction(){
 				@Override
@@ -525,7 +534,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	
 	//called when drop command sent. Updates flag, prints out time and altitude of drop
 	private void dropPackage() {
-		serialComm.write('P');  //send drop command to arduino
+		serialComm.write('o');  //send drop command to arduino
 		planeMessageConsole.println("Drop package sent.");
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		System.out.println(time + "s: Package dropped at: "+lblAlt.getText() + " ft");
@@ -751,6 +760,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnDrop = new JButton("Drop");
 		servoButtonPanel.add(btnDrop);
+		
+		btnCloseDropBay = new JButton("Close Drop Bay");
+		servoButtonPanel.add(btnCloseDropBay);
 		
 		//R Dowlling added
 		btnEnterBypass = new JButton("Enter Bypass");
