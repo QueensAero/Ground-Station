@@ -75,7 +75,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
 	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
-	private JButton btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
+	private JButton btnToggleAutoDrop, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
@@ -277,6 +277,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
+		btnToggleAutoDrop.setEnabled(val);
 		btnCloseDropBay.setEnabled(val);
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
@@ -424,6 +425,14 @@ public class MainWindow extends JPanel implements PacketListener {
 	                		err.printStackTrace();
 	                	}
 	                }
+				}
+			});
+			
+			btnToggleAutoDrop.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					// Toggle autoDrop enable, the plane should respond to tell us what mode it is in
+					serialComm.write('a');
+					planeMessageConsole.println("Toggle Auto-Drop sent.");
 				}
 			});
 			
@@ -746,6 +755,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnSave = new JButton("Save");
 		servoButtonPanel.add(btnSave);
 		
+		btnToggleAutoDrop = new JButton("Enable AutoDrop");
+		servoButtonPanel.add(btnToggleAutoDrop);
+		
 		btnDrop = new JButton("Drop");
 		servoButtonPanel.add(btnDrop);
 		
@@ -769,7 +781,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnRestartStream = new JButton("Restart Video");
 		servoButtonPanel.add(btnRestartStream);
-		
 		
 		
 		return servoButtonPanel;
@@ -995,6 +1006,16 @@ public class MainWindow extends JPanel implements PacketListener {
 		}
 		else if (str.substring(0, 1).equals("y")) {
 			planeMessageConsole.println(time + "s: Drop Acknowledge");
+		}
+		else if (str.substring(0, 1).equals("b")) {
+			planeMessageConsole.println(time + "s: Auto Drop ON confirmation.");
+			targeter.setAutoDropEnabled(true);
+			btnToggleAutoDrop.setText("Disable AutoDrop");
+		}
+		else if (str.substring(0, 1).equals("d")) {
+			planeMessageConsole.println(time + "s: Auto Drop OFF confirmation.");
+			targeter.setAutoDropEnabled(false);
+			btnToggleAutoDrop.setText("Enable AutoDrop");
 		}
 		else if (str.substring(0, 1).equals("1")) {
 			planeMessageConsole.println(time + "s: MPU6050 Ready");

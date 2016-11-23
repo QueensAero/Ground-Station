@@ -69,16 +69,16 @@ public class Targeter extends JPanel {
 	public GPSPos baseGPSposition; 
 	public GPSPos curGPSPosition; 
 	public GPSPos targetPos;   //this is currently a point just behind ILC. NOTE the NEGATIVE on Long component to account for west
-	public GPSTargeter GSPTargeting; 
+	public GPSTargeter GSPTargeting;
+	
+	private boolean autoDropEnabled;
 	
 	
 	//constructor
 	public Targeter() {
-		
+		autoDropEnabled = false; // Assume that autoDrop is disabled initially
 		//set size of JPanel
 		this.setMinimumSize(new Dimension(550, rows));
-		
-		
 		
 		 ActionListener updateTargetArea = new ActionListener() {
 		      public void actionPerformed(ActionEvent evt) {
@@ -112,7 +112,13 @@ public class Targeter extends JPanel {
 	public double actEstDropPosXMeters() { return actEstDropPosXMeters; }
 	public double actEstDropPosYMeters() { return actEstDropPosYMeters; }
 	
-
+	public void setAutoDropEnabled(boolean enabled) {
+		autoDropEnabled = enabled;
+	}
+	
+	public boolean getAutoDropEnabled() {
+		return autoDropEnabled;
+	}
 	
 	
 	public void update()
