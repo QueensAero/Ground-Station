@@ -1017,6 +1017,12 @@ public class MainWindow extends JPanel implements PacketListener {
 			targeter.setAutoDropEnabled(false);
 			btnToggleAutoDrop.setText("Enable AutoDrop");
 		}
+		else if (str.substring(0, 1).equals("o")) {
+			planeMessageConsole.println(time + "s: Open Drop Bay Acknowledge");
+		}
+		else if(str.substring(0, 1).equals("c")) {
+			planeMessageConsole.println(time + "s: Close Drop Bay Acknowledge");
+		}
 		else if (str.substring(0, 1).equals("1")) {
 			planeMessageConsole.println(time + "s: MPU6050 Ready");
 		}
