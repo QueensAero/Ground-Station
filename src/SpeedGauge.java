@@ -20,6 +20,7 @@ import java.awt.geom.RoundRectangle2D;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.Logger;
 
 
 /**
@@ -27,6 +28,7 @@ import java.util.Map;
  * http://syntaxcandy.blogspot.com
  */
 public class SpeedGauge { //implements Gauge {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	private static final float DEG_2_RAD = (float) (PI / 180.0f);
 	private static final float STEP_DEGREES = 240.0f / 10.0f;

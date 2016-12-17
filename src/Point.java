@@ -1,9 +1,11 @@
+import java.util.logging.Logger;
 
 /**
  * Copyright (c) Bartosz Zaczynski, 2010
  * http://syntaxcandy.blogspot.com
  */
 public class Point {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	public double x;
 	public double y;

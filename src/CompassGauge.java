@@ -22,6 +22,7 @@ import java.awt.geom.GeneralPath;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /*
 import syntaxcandy.gps.ext.CompassExtension;
@@ -83,6 +84,7 @@ public class MercatorProjection {
 
 
 public class CompassGauge { //implements Gauge {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	private static final int MAP_SIZE_METERS = 100;
 	

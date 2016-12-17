@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat;
 import java.time.temporal.ChronoField;
 import java.util.Date;
 import java.util.TimeZone;
+import java.util.logging.Logger;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -72,6 +73,7 @@ import java.nio.file.StandardOpenOption;
 
 
 public class VideoFeed extends JPanel{
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
 	//private final static int vidRows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel

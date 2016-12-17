@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.TooManyListenersException;
+import java.util.logging.Logger;
 
 /* Commented by Ryan Dowling, Dec. 2015
  * Not positive in all comments, but best guesses (I didn't write this code)  
@@ -25,6 +26,7 @@ interface PacketListener {
 
 
 public class SerialCommunicator implements SerialPortEventListener, PacketListener {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	String packet;
 	ArrayList<PacketListener> listeners = new ArrayList<PacketListener>();

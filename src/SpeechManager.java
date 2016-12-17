@@ -1,3 +1,5 @@
+import java.util.logging.Logger;
+
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
@@ -12,6 +14,7 @@ import com.sun.speech.freetts.VoiceManager;
  * This class handles creation of new threads for speech and avoids overlaps of speech updates.
  */
 public class SpeechManager {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	private double FT_TO_METRES = 0.3048;  
 	
 	Voice voice;

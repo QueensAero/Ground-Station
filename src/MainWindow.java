@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Random;
 import java.util.TimeZone;
+import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -69,6 +70,7 @@ import javax.swing.text.DefaultCaret;
  */
 
 public class MainWindow extends JPanel implements PacketListener {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	public VideoFeed videoFeed;
 	public Targeter targeter;

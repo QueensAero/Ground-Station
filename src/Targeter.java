@@ -12,6 +12,7 @@ import java.awt.image.BufferedImage;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
+import java.util.logging.Logger;
 
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -20,7 +21,7 @@ import javax.swing.Timer;
 //transmission latency should be ~65/2 ms (half of round trip value per http://hades.mech.northwestern.edu/index.php/PIC32MX:_XBee_Wireless_Round-trip_Latency
 
 public class Targeter extends JPanel {
-	
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	//thread variables
 	Timer threadTimer; 

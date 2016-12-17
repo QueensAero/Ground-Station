@@ -21,7 +21,6 @@ public class AeroGUI {
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
-				
 				try {
 					UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 					AeroGUI window = new AeroGUI();  //create an instance of AeroGUI class
