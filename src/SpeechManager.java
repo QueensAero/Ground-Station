@@ -94,7 +94,7 @@ public class SpeechManager {
 		currentlyReportingTime = b;
 	}
 	
-	private void speak(String script) {
+	private void speak(final String script) {
 		// Start a new thread to speak in the background to avoid blocking the program
 		Thread t = new Thread() {
 		    public void run() {
