@@ -75,7 +75,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	public VideoFeed videoFeed;
 	public Targeter targeter;
 	private JComboBox commPortSelector;
-	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
+	private JButton btnRefresh, btnConnect; //connection buttons
 	private JButton btnEnable, btnClearData, btnRequestAltAtDrop;
 	private JButton btnToggleAutoDrop, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
@@ -99,7 +99,6 @@ public class MainWindow extends JPanel implements PacketListener {
 	SimpleDateFormat sdf;
 	String startDate;
 	long startTime = 0;
-
 	
 	//constructor
 	public MainWindow (SerialCommunicator sc, JFrame frame) {
@@ -108,15 +107,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		initializeComponents();
 
 		initializeButtons();
-		
-		 ActionListener loggingAL = new ActionListener() {
-		      public void actionPerformed(ActionEvent evt) {
-		         logData();
-		      }
-		  };
-		  
-		  
-		threadTimer = new Timer(100, loggingAL);  //33 ms ~30FPS
 		
 		parentFrame = frame;
 		gpsTargetDialog = new GPSTargetDialog(frame, "GPS Target", this);
@@ -184,74 +174,10 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 	}
 	
-	
-	
-	
-	
-	private void initLogging(){
-		
-		
-		sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss.SSS");
-		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-		
-		//set timestamp
-		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-		startDate = new String(sdf.format(date)); ;
-				
-		
-		//START OUTPUT STREAM
-		//logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
-		//		"Aero" + File.separator + "LogFiles" + File.separator + startDate + "_log.txt");
-		
-		JFileChooser logFile = new JFileChooser();
-        logFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
-        logFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        int val = logFile.showSaveDialog(null);
-        if (val == JFileChooser.APPROVE_OPTION) {                		
-        	String filename = logFile.getSelectedFile().toString();
-        	try {
-        	if (logFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
-        		filename += ".txt";
-        	} catch (Exception err) {}
-        	logPath = Paths.get(filename);
-        }
-		
-		/*
-		// Create "LogFiles" folder if it does not exist:
-		try {
-			Files.createDirectories(logPath.getParent());
-		} catch (IOException e2) {
-			System.err.println("Could not create directory: " + logPath.getParent());
-		}
-		*/
-		// Create log file:
-        try {
-            Files.createFile(logPath);
-        } catch (FileAlreadyExistsException e) {
-            System.err.println("File already exists: " + logPath);
-        } catch (IOException e) {
-        	System.err.println("Could not create file: " + logPath);
-        }
-        String s = "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
-        
-        try {
-            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
-        } catch (IOException e) {
-        // It's really hard to recover from an IOException. Should probably just notify user and stop recording.
-            System.err.println("Could not write to file: " + logPath);
-        }
-        
-        startTime = System.currentTimeMillis();
-		
-	}
-
-
 	private void logData() {
-		
-		//Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
 		LocalDateTime now = LocalDateTime.now();
-		
-		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() +targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
+		//Log format: "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() + targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
 					+ "." + now.getMinute() +"."+ (now.getSecond() + now.get(ChronoField.MILLI_OF_SECOND)/1000.0) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
 					+ "," + String.format("%.4f",videoFeed.rollAng) + "," + String.format("%.4f",videoFeed.pitchAng) + "," + String.format("%.4f",videoFeed.airSpd) + "," 
 					+ String.format("%.4f",videoFeed.altitude) + "," + String.format("%.4f",videoFeed.lattitude) + ","	+ String.format("%.4f",videoFeed.longitude) + "," 
@@ -259,19 +185,7 @@ public class MainWindow extends JPanel implements PacketListener {
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
 					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDrop) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
 					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "\n";
-			
-				
-		
-		try {
-			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)
-			// If this is too slow, then we will have to either set up a BufferedWriter and just close it when we are
-			// done recording, OR we could simply save the data in an array and then print it all when we're done recording.
-			Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
-		} catch (IOException e) {
-			// It's really hard to recover from an IOException. Should probably just notify user and stop recording.
-			System.err.println("Could not write to file: " + logPath);
-		}		
-			
+		LOGGER.finer(s);	
 	}
 	
 	
@@ -349,22 +263,6 @@ public class MainWindow extends JPanel implements PacketListener {
 					}
 				}
 			});
-			
-			btnToggleLogging.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					
-					if(threadTimer.isRunning())
-						threadTimer.stop(); //note: by default Coalescing is on, meaning that it won't queue events
-					else
-					{	
-						initLogging();
-						threadTimer.start();
-					}
-						
-					
-				}
-			});
-		
 			
 			//when 'Enable/Disable Resets' Pressed
 			btnEnable.addActionListener(new ActionListener() {
@@ -777,8 +675,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c2.gridx = 4;
 		c2.gridy = 1;
 
-		btnToggleLogging = new JButton("Toggle Logging");
-		commPortControlPanel.add(btnToggleLogging, c2);
 		return commPortControlPanel;
 	}
 	private JPanel initializeDataPanel() {
@@ -932,8 +828,6 @@ public class MainWindow extends JPanel implements PacketListener {
 			//print to logging screen
 			//dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
 			//						+ "," + (timeArr[0]+timeArr[1]/1000.0) );
-			LOGGER.finer(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
-									+ "," + (timeArr[0]+timeArr[1]/1000.0));
 			
 			//Update data in VideoFeed Class 
 			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
@@ -941,6 +835,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			//update targeting stuff
 			targeter.updateGPSData(dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
 
+			logData(); // Log the new state each time new data is received 
 			
 		}
 		else if (str.substring(0, 1).equals("a")) {  //have requested the altitude at drop be returned
