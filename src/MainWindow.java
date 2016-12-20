@@ -76,13 +76,13 @@ public class MainWindow extends JPanel implements PacketListener {
 	public Targeter targeter;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
-	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
+	private JButton btnEnable, btnClearData, btnRequestAltAtDrop;
 	private JButton btnToggleAutoDrop, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
-	public PrintStream planeMessageConsole, dataLogger;
-	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
+	public PrintStream planeMessageConsole;
+	private JTextArea planeMessageTextArea, consoleTextArea;
 	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblHead, lblTS, lblAltAtDrop; //labels to display the values
 	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
@@ -313,8 +313,6 @@ public class MainWindow extends JPanel implements PacketListener {
 			//when 'Clear' pressed.  Clears the console and plane messages window 
 			btnClearData.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					dataLoggerTextArea.setText("");
-					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 					planeMessageTextArea.setText("");
 					consoleTextArea.setText("");
 				}
@@ -394,42 +392,6 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
-			
-			//when 'Save' pressed -> handles the saving of the received data area
-			btnSave.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-	                JFileChooser saveFile = new JFileChooser();
-	                saveFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
-	                saveFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
-	                int val = saveFile.showSaveDialog(null);
-	                if (val == JFileChooser.APPROVE_OPTION) {                		
-	                	String filename = saveFile.getSelectedFile().toString();
-	                	try {
-	                	if (saveFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
-	                		filename += ".txt";
-	                	} catch (Exception err) {}
-	                	FileWriter fstream = null;
-	                	BufferedWriter writer = null;
-	                	String messages = planeMessageTextArea.getText();
-	                	String data = dataLoggerTextArea.getText();
-	                	System.out.println("Attempting to save data as \"" + filename + "\"");
-	                	try {
-	                		fstream = new FileWriter(filename);
-	                		writer = new BufferedWriter(fstream);
-	                		writer.write("Plane Messages:\n");
-	                		writer.write(messages);
-	                		writer.write("Data:\n");
-							writer.write(data);
-							writer.close();
-							System.out.println("File saved succesfully.");
-	                	} catch (IOException err) {
-	                		System.out.println("Error saving file.");
-	                		err.printStackTrace();
-	                	}
-	                }
-				}
-			});
-			
 			btnToggleAutoDrop.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					// Toggle autoDrop enable, the plane should respond to tell us what mode it is in
@@ -474,8 +436,6 @@ public class MainWindow extends JPanel implements PacketListener {
 				public void actionPerformed(ActionEvent e) {
 					serialComm.write('r');
 					planeMessageConsole.println("Reset sent.");
-					dataLoggerTextArea.setText("");
-					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 				}
 			});
 			
@@ -484,10 +444,8 @@ public class MainWindow extends JPanel implements PacketListener {
 				public void actionPerformed(ActionEvent e) {
 					serialComm.write('q');  //send the command to plane
 					planeMessageConsole.println("Restart sent."); 
-					dataLoggerTextArea.setText("");  //delete old text
 					videoFeed.changeDropStatus(false);	
 					targeter.setDropStatus(false);
-					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 				}
 			});
 			
@@ -685,7 +643,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		// logPanel
 		//panel cotaining the data logging
-		JPanel logPanel = new JPanel();
+		/*JPanel logPanel = new JPanel();
 		logPanel.setLayout(new BorderLayout());
 		logPanel.setMinimumSize(new Dimension(minWidth, 60));
 		logPanel.setPreferredSize(new Dimension(preferredWidth, 200));
@@ -708,6 +666,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 1;
 		c.fill = GridBagConstraints.BOTH;
 		leftPanel.add(logPanel, c);
+		*/
 		
 		
 		/***** Right Side: *****/
@@ -753,9 +712,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnEnable = new JButton("Enable/Disable Resets");
 		servoButtonPanel.add(btnEnable);
-		
-		btnSave = new JButton("Save");
-		servoButtonPanel.add(btnSave);
 		
 		btnToggleAutoDrop = new JButton("Enable AutoDrop");
 		servoButtonPanel.add(btnToggleAutoDrop);
@@ -974,8 +930,10 @@ public class MainWindow extends JPanel implements PacketListener {
 			LocalDateTime now = LocalDateTime.now();
 
 			//print to logging screen
-			dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
-									+ "," + (timeArr[0]+timeArr[1]/1000.0) );
+			//dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
+			//						+ "," + (timeArr[0]+timeArr[1]/1000.0) );
+			LOGGER.finer(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
+									+ "," + (timeArr[0]+timeArr[1]/1000.0));
 			
 			//Update data in VideoFeed Class 
 			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);

@@ -12,7 +12,6 @@ import javax.swing.UIManager;
 public class AeroGUI {
 	// Logger to be used by all classes in the project. (This line should be at the top of every class)
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
-	private static ConsoleHandler ch;
 	private static FileHandler fh;
 	private static MainWindow main;
 	private JFrame frame;
@@ -79,12 +78,10 @@ public class AeroGUI {
 		    @Override
 		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
 		    	
-		    	
+		    	LOGGER.fine("CLosing Window.");
 		    	main.videoFeed.endCapture();  //Comment this out to remove OpenCV dependance
 		    	main.console.close();
 		    	main.planeMessageConsole.close();  
-		    	main.dataLogger.close();
-		    	
 		    	System.exit(0);  //terminate the program		        
 		    }
 		});
