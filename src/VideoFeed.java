@@ -419,17 +419,17 @@ public class VideoFeed extends JPanel{
 	
 	/* Starts/stops the recording AND output log file */
 	public void toggleRecordingStatus(){
-		
-		if(!recordingVideo)  //start recording
-		{	
-			recordingVideo = true;	currentRecordingFN = 1;  //reset
-			System.out.println("Recording Set to ON");
-			
-		}
-		else //stop recording video
-		{
-			recordingVideo = false;
-			System.out.println("Recording Set to OFF");
+		if(cap.isOpened()) {
+			if(!recordingVideo) {  //start recording
+				recordingVideo = true;	currentRecordingFN = 1;  //reset
+				LOGGER.info("Recording Set to ON");
+				
+			} else { //stop recording video
+				recordingVideo = false;
+				LOGGER.info("Recording Set to OFF");
+			}
+		} else {
+			LOGGER.warning("Recording not started because camera capture is not open.");
 		}
 		
 	}

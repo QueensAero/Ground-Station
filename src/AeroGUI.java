@@ -43,6 +43,8 @@ public class AeroGUI {
 	        // The possible log levels are: FINEST, FINER, FINE, CONFIG, INFO, WARNING, SEVERE
 	    	// By default, INFO and higher is logged to the console
 	    	// FINER will be reserved for received data packets only!!!
+	    	
+	        LOGGER.setUseParentHandlers(false); // Don't log everything to the console
 	    	String timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
 	    	fh = new FileHandler(timeStamp + "_groundstation.log", true); // Don't overwrite existing file 
 	        fh.setFormatter(new SimpleFormatter());
@@ -77,11 +79,12 @@ public class AeroGUI {
 		frame.addWindowListener(new java.awt.event.WindowAdapter() {
 		    @Override
 		    public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-		    	
 		    	LOGGER.fine("CLosing Window.");
 		    	main.videoFeed.endCapture();  //Comment this out to remove OpenCV dependance
 		    	main.console.close();
-		    	main.planeMessageConsole.close();  
+		    	Handler[] handlers = LOGGER.getHandlers();
+		    	for(Handler handler : handlers) // Flush all handlers
+		    		handler.close();
 		    	System.exit(0);  //terminate the program		        
 		    }
 		});
