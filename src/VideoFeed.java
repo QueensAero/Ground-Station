@@ -132,24 +132,24 @@ public class VideoFeed extends JPanel{
 		try {
 			speedGauge = new SpeedGauge(radius,yCent,radius, 40, "m/s");
 		} catch (FontFormatException e) {
-			System.out.print("gauge init error");
+			LOGGER.warning("gauge init error");
 		} catch (IOException e) {
-			System.out.print("gauge init error");
+			LOGGER.warning("gauge init error");
 		}
 		
 		try {
 			altGauge = new SpeedGauge(3*radius,yCent,radius, 300, "ft");
 		} catch (FontFormatException e) {
-			System.out.print("gauge init error");
+			LOGGER.warning("gauge init error");
 		} catch (IOException e) {
-			System.out.print("gauge init error");
+			LOGGER.warning("gauge init error");
 		}		
 		
 		 try {
 		 
 			compassGauge = new CompassGauge((int)(radius*2*0.9), 4*radius, (int)(yCent-radius*0.9));  //x4 since values passed are TL, 0.9 scales to spdGauge sizing
 		} catch (FontFormatException | IOException e) {
-			System.out.print("gauge init error");
+			LOGGER.warning("gauge init error");
 
 		}
 		 
@@ -163,26 +163,23 @@ public class VideoFeed extends JPanel{
 		//set the size of the painting space
 		Dimension size = new Dimension(cols, totRows); 
 		this.setPreferredSize(size);
-				
-		
-		 ActionListener updateStream = new ActionListener() {
-		      public void actionPerformed(ActionEvent evt) {
-		          update();
-		      }
-		  };
+		ActionListener updateStream = new ActionListener() {
+			public void actionPerformed(ActionEvent evt) {
+				update();
+			}
+		};
 		
 		threadTimer = new Timer(33, updateStream);  //33 ms ~30FPS
 		threadTimer.start(); //note: by default Coalescing is on, meaning that it won't queue events
-	
 	}
 	
 	public int getVideoSrc(){	return videoSource;	}
-		
+	
 	
 	/******************openCV DEPENDANCE STARTS **********************************/
 	
 	//this is something weird that has to be done to properly load the OpenCV library
-	static {  System.loadLibrary( Core.NATIVE_LIBRARY_NAME );	}
+	static { System.loadLibrary( Core.NATIVE_LIBRARY_NAME ); }
 		
 	//Video capture object (handles stream)
 	private VideoCapture cap;
@@ -196,8 +193,7 @@ public class VideoFeed extends JPanel{
 		cap = new VideoCapture(videoSource);   //0 = webcam, 1 = Analog2USB device
 		
 		// Check if video capturing is enabled]
-		if (!cap.isOpened()) { System.out.println("Could not open video feed.");}
-		
+		if (!cap.isOpened()) { LOGGER.warning("Could not open video feed.");}	
 	}
 	
 	private BufferedImage getImageCV(){
@@ -212,15 +208,14 @@ public class VideoFeed extends JPanel{
 				streamActive = true; 
 				//System.out.print("test");
 				return toBufferedImage(CVimg);  //convert from CV Mat to BufferedImage				
-		}
-		else
-		{	//System.out.println("No image grabbed, making a blank image");
+		} else {
+			//System.out.println("No image grabbed, making a blank image");
 			return new BufferedImage(cols, totRows, BufferedImage.TYPE_3BYTE_BGR);
 		}
 	}
 	
 	//function to end the video capture and display thread 
-	public void endCapture(){	threadTimer.stop();	cap.release();}
+	public void endCapture(){ threadTimer.stop(); cap.release(); }
 
 
 	 //convert from OpenCV Image container (Mat) to Java image container (Image or BufferedImage)   
@@ -248,7 +243,7 @@ public class VideoFeed extends JPanel{
 		cap = new VideoCapture(videoSource);   //re-open it
 		
 		// Check if video capturing is enabled
-		if (!cap.isOpened()) { System.out.println("Could not re-open video feed.");}
+		if (!cap.isOpened()) { LOGGER.warning("Could not re-open video feed.");}
 		
 	}
 	
@@ -345,7 +340,7 @@ public class VideoFeed extends JPanel{
 
 			modifiedFrame.setTransform(saveXform); // Restore initial transform
     	} else {
-    		System.out.println("No image to render");
+    		LOGGER.warning("No image to render");
     	}
 
     }
@@ -381,8 +376,7 @@ public class VideoFeed extends JPanel{
 
     
     
-    private void saveFrame(){
-    	
+    private void saveFrame() {
     		//can change wher you want to save to
     		File outputfile = new File("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
 						"Aero" + File.separator + "Images" + File.separator + startDate + "_" + currentRecordingFN + ".jpg");
@@ -400,9 +394,9 @@ public class VideoFeed extends JPanel{
 				jpgWriter.setOutput(outputStream);
 
 			} catch (FileNotFoundException e) {
-				System.out.print("Failed to save image");
+				LOGGER.warning("Failed to save image");
 			} catch (IOException e) {
-				System.out.print("Failed to save image");
+				LOGGER.warning("Failed to save image");
 			} 
 			
 			IIOImage outputImage = new IIOImage((BufferedImage)img, null, null);
@@ -410,9 +404,8 @@ public class VideoFeed extends JPanel{
 			try {
 				jpgWriter.write(null, outputImage, jpgWriteParam);
 			} catch (IOException e) {
-				System.out.print("Failed to save image");
+				LOGGER.warning("Failed to save image");
 			}
-		
     }
     
 
@@ -431,7 +424,6 @@ public class VideoFeed extends JPanel{
 		} else {
 			LOGGER.warning("Recording not started because camera capture is not open.");
 		}
-		
 	}
 	
 	public boolean getRecordStatus() {  return recordingVideo;  }

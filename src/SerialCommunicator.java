@@ -118,10 +118,10 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		
     		//update status bool and print success to console
     		connected = true;  
-    		System.out.println(selectedPort + " opened succesfully.");
+    		LOGGER.info(selectedPort + " opened succesfully.");
     		
     	} catch (Exception e) {
-    		System.out.println("Failed to connect to " + selectedPort);
+    		LOGGER.warning("Failed to connect to " + selectedPort);
     		e.printStackTrace();
     	}
     	
@@ -237,9 +237,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		serialPort.removeEventListener();
     		serialPort.close();
     		connected = false;
-    		System.out.println("Disconnect from " + serialPort.getName());
+    		LOGGER.info("Disconnect from " + serialPort.getName());
     	} catch (Exception e) {
-    		System.out.println("Failed to close " + serialPort.getName());
+    		LOGGER.warning("Failed to close " + serialPort.getName());
     		e.printStackTrace();
     	}
     }
@@ -251,7 +251,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		output = serialPort.getOutputStream();
     		return true;
     	} catch (Exception e) {
-    		System.out.println("Failed to initialize IO streams.");
+    		LOGGER.warning("Failed to initialize IO streams.");
     		e.printStackTrace();
     	}
     	return false;
@@ -280,7 +280,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             serialPort.notifyOnDataAvailable(true);  //create event when input data available
         }
         catch (TooManyListenersException e) {
-            System.out.println("Too many listeners: " + e.toString());
+            LOGGER.warning("Too many listeners: " + e.toString());
         }
     }
     
@@ -309,7 +309,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 					           			
 					if(byteInd > 80)  //something missed the end, reset
 					{
-						System.out.println("Resetting byte Index (since > 80)");
+						LOGGER.info("Resetting byte Index (since > 80)");
 						byteInd = 0;
 						received.delete(0, received.length());      	
 						packetStart = packetEnd = -1;
@@ -361,7 +361,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 				}
 				else if(packetEnd != -1)  //if packetEnd is not -1 and doesn't fit above boxes, means we have bad packet
 				{
-					System.out.println("PE - PS = " + (packetEnd-packetStart));
+					LOGGER.info("PE - PS = " + (packetEnd-packetStart));
 					received.delete(0, received.length());
 	    			invalidPacketReceived(temp);
 	    			byteInd = 0;
@@ -369,7 +369,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 				}
 	        }
 	        catch (Exception e) {
-	            System.out.println("Failed to read data.");
+	            LOGGER.warning("Failed to read data.");
 	            e.printStackTrace();
 	        }
             	 
@@ -431,7 +431,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		output.flush();  //clear the output buffer - don't let it wait
     	}
     	catch (Exception e) {
-    		System.out.println("Write failed.");
+    		LOGGER.warning("Write failed.");
     		e.printStackTrace();
     	}
     }

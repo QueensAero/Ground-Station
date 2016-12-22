@@ -420,28 +420,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		leftPanel.add(gpsTargetPanel, c);
 		
-		// planeMessagePanel
-		/*JPanel planeMessagePanel = new JPanel(); //Panel containing the plane messages
-		planeMessagePanel.setBorder(new TitledBorder(new EtchedBorder(), "Plane Messages"));
-		planeMessagePanel.setLayout(new BorderLayout());
-		planeMessagePanel.setMinimumSize(new Dimension(minWidth, 60));
-		planeMessagePanel.setPreferredSize(new Dimension(preferredWidth, 200));
-		planeMessageTextArea = new JTextArea();
-		JScrollPane planeMessageScroller = new JScrollPane(planeMessageTextArea);
-		planeMessageConsole = new PrintStream(new TextAreaOutputStream(planeMessageTextArea));
-		planeMessageScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		DefaultCaret planeMessageCaret = (DefaultCaret)planeMessageTextArea.getCaret();
-		planeMessageCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-		planeMessagePanel.add(planeMessageScroller);
-		c.gridx = 0;
-		c.gridy = 4;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 1;
-		c.fill = GridBagConstraints.BOTH;
-		leftPanel.add(planeMessagePanel, c);*/
-		
 		// consolePanel
 		//Panel containing the console (System.out is mapped to here)
 		JPanel consolePanel = new JPanel();
@@ -477,33 +455,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 1;
 		c.fill = GridBagConstraints.BOTH;
 		leftPanel.add(consolePanel, c);
-		
-		// logPanel
-		//panel cotaining the data logging
-		/*JPanel logPanel = new JPanel();
-		logPanel.setLayout(new BorderLayout());
-		logPanel.setMinimumSize(new Dimension(minWidth, 60));
-		logPanel.setPreferredSize(new Dimension(preferredWidth, 200));
-		dataLoggerTextArea = new JTextArea();
-		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		dataLoggerTextArea.setMinimumSize(new Dimension(640, 300));	//added, don't think it does anything
-		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
-		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
-		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		DefaultCaret dataLoggerCater = (DefaultCaret)dataLoggerTextArea.getCaret();
-		dataLoggerCater.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
-		dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
-		c.gridx = 0;
-		c.gridy = 6;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 1;
-		c.fill = GridBagConstraints.BOTH;
-		leftPanel.add(logPanel, c);
-		*/
 		
 		
 		/***** Right Side: *****/

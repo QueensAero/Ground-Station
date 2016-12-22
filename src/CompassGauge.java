@@ -1,5 +1,3 @@
-//package syntaxcandy.gauge;
-
 import static java.lang.Math.PI;
 import static java.lang.Math.log;
 import static java.lang.Math.tan;
@@ -24,72 +22,10 @@ import java.util.Date;
 import java.util.Map;
 import java.util.logging.Logger;
 
-/*
-import syntaxcandy.gps.ext.CompassExtension;
-import syntaxcandy.gps.ext.Extension;
-import syntaxcandy.gps.track.Track;
-import syntaxcandy.gps.track.TrackPoint;
-import syntaxcandy.util.Earth;
-import syntaxcandy.util.FontLoader;
-import syntaxcandy.util.MercatorProjection;
-import syntaxcandy.util.Point;
-*/
-
-/**
- * Copyright (c) Bartosz Zaczynski, 2010
- * http://syntaxcandy.blogspot.com
- */
-
-/*
- * 
- * public class TrackPoint {
-	
-	public Date utcTime;
-	public double latitudeDegrees;
-	public double longitudeDegrees;
-	public double altitudeMeters;
-	public double elapsedSeconds;
-	public double distanceMeters;
-	public double velocityMetersPerSecond;
-}
-
-
-
-public class MercatorProjection {
-	
-	private static final double QUARTER = PI / 4.0;
-	
-	private double scaleFactor;
-	
-	public MercatorProjection(double scaleFactor) {
-		this.scaleFactor = scaleFactor;
-	}
-	
-	public Point compute(Point point) {
-		return compute(point.x, point.y);
-	}
-	
-	public Point compute(double longitude, double latitude) {
-		
-		double x = scaleFactor * longitude;
-		double y = scaleFactor * toDegrees(log(tan(QUARTER + toRadians(latitude) / 2.0)));
-		
-		return new Point(x, y);
-	}
-}
-
-
-
- */
-
-
-public class CompassGauge { //implements Gauge {
+public class CompassGauge {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	private static final int MAP_SIZE_METERS = 100;
-	
-	//private MercatorProjection projection;
-	//private TrackPoint current;
 	
 	//replace trackpoint
 	public Date utcTime;
@@ -129,8 +65,6 @@ public class CompassGauge { //implements Gauge {
 	private Point _p1, _p2, _p3, _p4;
 	private Point center;
 
-	
-	//public CompassGauge(Track track, int mapSizePixels, int x, int y) throws FontFormatException, IOException {
 	public CompassGauge(int mapSizePixels, int x, int y) throws FontFormatException, IOException {
 	
 		radius = mapSizePixels / 2;
@@ -152,21 +86,15 @@ public class CompassGauge { //implements Gauge {
 		font = new Font("TimesRoman", Font.BOLD, 12);
 		makePoints();
 		makeShadow();
-
 	}
 	
-
-	
 	//@Override
-	public void draw(Graphics2D graphics) {
-		
+	public void draw(Graphics2D graphics) {	
 		//drawTrack(graphics);
 		drawCompass(graphics);
 		//graphics.setTransform(new AffineTransform());
 		drawArrow(graphics);
 		drawDot(graphics);
-
-
 	}
 	
 	
@@ -176,8 +104,7 @@ public class CompassGauge { //implements Gauge {
 		return transform;
 	}
 	
-private void drawArrow(Graphics2D graphics) {
-		
+	private void drawArrow(Graphics2D graphics) {
 		// shadow
 		graphics.setPaint(gradient);
 		graphics.setStroke(new BasicStroke(1.0f));
@@ -218,15 +145,12 @@ private void drawArrow(Graphics2D graphics) {
 	}
 
 	private void makePoints() {
-	
 		int arrowPadding = 5;  //small inside
 		
 		_p1 = new Point(0, -ARROW_MAX_HEIGHT / 2.0f);
 		_p2 = new Point(0, ARROW_MAX_HEIGHT / 2.0f);
 		_p3 = new Point(-radius + arrowPadding, ARROW_MIN_HEIGHT / 2.0f);
 		_p4 = new Point(-radius + arrowPadding, -ARROW_MIN_HEIGHT / 2.0f);
-		
-		
 		
 		center = new Point(xOffset, yOffset);
 	}
@@ -240,11 +164,9 @@ private void drawArrow(Graphics2D graphics) {
 		return new Ellipse2D.Float(x, y, diameter, diameter);
 	}
 	
-	
 	//@Override
-	public void updateValue(double heading){     //TrackPoint trackPoint, Map<String, Extension> extensions) {
-		
-		//angleRadians = headingToMathAngle(heading)*PI/180.0;;
+	public void updateValue(double heading){
+		//angleRadians = headingToMathAngle(heading)*PI/180.0;
 		angleRadians = headingToWhatThisClassWants(heading)*PI/180.0;
 		//current = trackPoint;
 		//CompassExtension extension = (CompassExtension) extensions.get(CompassExtension.KEY);
@@ -257,35 +179,27 @@ private void drawArrow(Graphics2D graphics) {
 		heading *= -1;
 		heading += 270;
 		return heading;
-		
 	}
 	
-	
-	
 	private void makeShadow() {
-			
-			float r = radius / 6.0f;
-			shadow = getCircle(xOffset, yOffset, r);
-			
-			gradient = new RadialGradientPaint(
-					xOffset, yOffset, r,
-				new float[]{
-					0.5f,
-					1.0f
-				},
-				new Color[]{
-					new Color(0.0f, 0.0f, 0.0f, 1.0f),
-					new Color(0.0f, 0.0f, 0.0f, 0.0f)
-				},
-				MultipleGradientPaint.CycleMethod.NO_CYCLE
-			);
-		}
-	
-	
-
+		float r = radius / 6.0f;
+		shadow = getCircle(xOffset, yOffset, r);
+		
+		gradient = new RadialGradientPaint(
+				xOffset, yOffset, r,
+			new float[]{
+				0.5f,
+				1.0f
+			},
+			new Color[]{
+				new Color(0.0f, 0.0f, 0.0f, 1.0f),
+				new Color(0.0f, 0.0f, 0.0f, 0.0f)
+			},
+			MultipleGradientPaint.CycleMethod.NO_CYCLE
+		);
+	}
 	
 	private void drawDot(Graphics2D graphics) {
-		
 		graphics.setColor(new Color(0.41f, 0.57f, 0.69f, 1));  //originally alpha channel (transparancy was 0.7f, is now 1)
 		graphics.fill(dot);
 		
@@ -295,7 +209,6 @@ private void drawArrow(Graphics2D graphics) {
 	}
 	
 	private void drawCompass(Graphics2D graphics) {
-		
 		graphics.setColor(new Color(1.0f, 1.0f, 1.0f, 0.7f));
 		graphics.setStroke(new BasicStroke(2.0f));
 		graphics.draw(circle);
@@ -342,86 +255,6 @@ private void drawArrow(Graphics2D graphics) {
 			angle += step;
 			graphics.setTransform(saveXform); // Restore initial transform
 			/***** END *****/
-
 		}
-	}
+	} // End drawCompass
 }
-
-
-/*
-public MercatorProjection getProjection() {
-	return projection;
-}
-
-private GeneralPath getTrackPath(Track track, int mapSizePixels) {
-	
-	double mapSizeDegrees = MAP_SIZE_METERS / Earth.METERS_PER_DEGREE;
-	double scaleFactor = mapSizePixels / mapSizeDegrees;
-	projection = new MercatorProjection(scaleFactor);
-	
-	findMinMax(track);
-	
-	GeneralPath path = new GeneralPath();
-	
-	int numPoints = track.getNumPoints();
-	for (int i = 0; i < numPoints; i++) {
-		
-		TrackPoint trackPoint = track.getPoint(i);
-		Point point = toScreen(trackPoint);
-		
-		if (i == 0) {
-			path.moveTo(point.x, point.y);
-		} else {
-			path.lineTo(point.x, point.y);
-		}
-	}
-	
-	return path;
-}
-
-private void findMinMax(Track track) {
-	
-	minLongitude = 180;
-	maxLatitude = 0;
-	
-	int numPoints = track.getNumPoints();
-	for (int i = 0; i < numPoints; i++) {
-		
-		TrackPoint trackPoint = track.getPoint(i);
-		double lon = trackPoint.longitudeDegrees;
-		double lat = trackPoint.latitudeDegrees;
-		
-		if (lon < minLongitude) minLongitude = lon;
-		if (lat > maxLatitude) maxLatitude = lat;
-	}
-}
-
-private Point toScreen(TrackPoint trackPoint) {
-	
-	double lon = trackPoint.longitudeDegrees - minLongitude;
-	double lat = maxLatitude - trackPoint.latitudeDegrees;
-	
-	Point point = projection.compute(new Point(lon, lat));
-	return new Point(point.x, point.y);
-}
-
-
-
-
-private void drawTrack(Graphics2D graphics) {
-	
-	Point center = toScreen(current);
-	
-	AffineTransform transform = getTransform();
-	transform.translate(xOffset - center.x, yOffset - center.y);
-	
-	graphics.setClip(circle);
-	graphics.setTransform(transform);
-	
-	graphics.setColor(new Color(1.0f, 1.0f, 1.0f, 0.8f));
-	graphics.setStroke(new BasicStroke(4.0f));
-	graphics.draw(path);
-	
-	graphics.setClip(null);
-	graphics.setTransform(getTransform());
-}  */

@@ -38,11 +38,10 @@ public class SpeechManager {
 			toneManager = new Tone();
 		} catch (LineUnavailableException e) {
 			// TODO Auto-generated catch block
-			System.err.println("Failed to create Tone.");
+			LOGGER.warning("Failed to create Tone.");
 			e.printStackTrace();
 		}
 		toneManager.start();
-		
 	}
 	
 	/**
