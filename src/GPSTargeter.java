@@ -132,7 +132,7 @@ public class GPSTargeter {
 	 */
 	private double pathDistToTarget() {
 		double dist = 0;
-		dist = Math.sqrt(Math.pow(directDistToTarget(), 2) - Math.pow(latError, 2));
+		dist = Math.sqrt(Math.pow(directDistToTarget(), 2) - Math.pow(latError, 2));		
 		//System.out.print("Distance to target along path: ");
 		//System.out.println(dist);
 		return dist;

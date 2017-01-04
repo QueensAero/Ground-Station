@@ -10,6 +10,7 @@ import java.awt.GridLayout;
 
 
 
+
 import javax.swing.JPanel;
 
 import java.awt.BorderLayout;
@@ -900,22 +901,26 @@ public class MainWindow extends JPanel implements PacketListener {
 	}
 	
 	//called from SerialCommunicator?
-	public void packetReceived(String packet, byte[] byteArray, int byteArrayInd) {
+	public void packetReceived(String packet, byte[] byteArray) {
 		//System.out.println(packet);
-		analyzePacket(packet, byteArray, byteArrayInd);
+		analyzePacket(packet, byteArray);
 	}
 	
 	//*p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%second%ms&  is old way
-	//*pXXXXYYYYZZZZAAAABBBBCCCCDDDDstt%    is new way, with XXXX = four bytes which combined make a float, s = 1 byte making uint8_t, tt = 2 bytes making uint16_t
+	//*pXXXXYYYYZZZZAAAABBBBCCCCDDDDsttee    is updated old way, 35 bytes longW
+	//with XXXX = four bytes which combined make a float, s = 1 byte making uint8_t, tt = 2 bytes making uint16_t, 
+	//*pXXXXYYYYZZZZAAAABBBBsttee is the newer way -> no longer sending roll or pitch, 27 bytes long
+	
 	
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
-	private void analyzePacket (String str, byte[] byteArray, int byteArrayInd) {
+	private void analyzePacket (String str, byte[] byteArray) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		
+		int byteArrayInd = 0;
 			
-		if(byteArrayInd >= 0){	//non negative indicates data packet (data packets the string stuff is weird
+		if(str.substring(0, 1).equals("p")){ //'p' indicates data packet
 			
-			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
+			double [] dblArr = new double [5]; //was 4 before, added LAT/Long/Heading/
 			int [] timeArr = new int[2];  //S, MS
 			
 			for(int x = 0; x < 7; x++)  //extract 7 float values (which are cast to double)
@@ -965,8 +970,11 @@ public class MainWindow extends JPanel implements PacketListener {
 			dblArr[5] *= -1;		//acount for the fact it should have 'W' attached (western hemisphere == negative longitude)
 			
 			//print to status area (top left)
-			lblRoll.setText(""+dblArr[0]);  lblPitch.setText(""+dblArr[1]);	lblAlt.setText(""+dblArr[2]);	lblSpeed.setText(""+dblArr[3]);	
-			lblHead.setText(""+dblArr[6]);  lblTS.setText(""+(timeArr[0]+timeArr[1]/1000.0));	
+			int ind = 0;
+			//lblRoll.setText(""+dblArr[ind++]);  lblPitch.setText(""+dblArr[ind++]);	
+			lblAlt.setText(""+dblArr[ind++]);	lblSpeed.setText(""+dblArr[ind++]);	
+			//Skip lattitude, longitude
+			lblHead.setText(""+dblArr[ind + 2]);  lblTS.setText(""+(timeArr[0]+timeArr[1]/1000.0));	
 			
 			
 			LocalDateTime now = LocalDateTime.now();
@@ -985,9 +993,16 @@ public class MainWindow extends JPanel implements PacketListener {
 		}
 		else if (str.substring(0, 1).equals("a")) {  //have requested the altitude at drop be returned
 			String altAsString = str.substring(str.indexOf("a") + 1);  //remove a from front
-			altAsString = altAsString.substring(0, altAsString.indexOf("%"));  //remove % from end
-			double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
-			planeMessageConsole.println("Altitude at drop = " + altitudeAtDrop);  //print result to console
+			altAsString = altAsString.substring(0, altAsString.indexOf("%"));  //remove % and anything after it
+			try{
+				double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
+				planeMessageConsole.println("Altitude at drop = " + altitudeAtDrop);  //print result to console
+			} catch(Exception e){  //Invalid double - still want to see what we got back
+				
+				System.out.print("Error while parsing returned altitude - raw string is:  ");
+				System.out.println(str);
+			}
+			
 		}
 		else if (str.substring(0, 1).equals("s")) {
 			planeMessageConsole.println(time + "s: Start");
