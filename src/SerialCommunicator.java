@@ -20,7 +20,7 @@ import java.util.logging.Logger;
  */
 
 interface PacketListener {
-	void packetReceived(String packet, byte[] byteArray, int byteArrayInd);
+	void packetReceived(String packet, byte[] byteArray);
 	void invalidPacketReceived(String packet);
 }
 
@@ -43,11 +43,16 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	final static int timeout = 2000;
 	final static int NEW_LINE_ASCII = 10;
 	final static int BAUD_RATE = 115200;  //57600;  //9600
+	final static int START_CHAR = 42;
+	final static int END_CHAR = 101;
+	final static int DATA_PACKET_L = 27;
+
+
 	
 	private StringBuffer received = new StringBuffer();
 	private byte[] receivedBytes = new byte[200];
-	private int byteInd = 0, packetStart = -1, packetEnd = -1;
-	private int firstEndCharInd = -1;
+	private int byteInd = 0, packetStartInd = -1, packetEndInd = -1;
+	private int mostRecentEndCharInd = -1;
 	
 	//constructor
 	public SerialCommunicator() {
@@ -100,8 +105,8 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	
     	received.setLength(0);  //information received is set (or reset) to 0 for new connection
     	byteInd = 0;
-    	packetStart = packetEnd = -1;
-    	firstEndCharInd = -1;
+    	packetStartInd = packetEndInd = -1;
+    	mostRecentEndCharInd = -1;
     	
     	selectedPortIdentifier = (CommPortIdentifier)portMap.get(selectedPort); //get information of the selected port 
     	CommPort commPort;  //temporary variable see below - is it even necessary?
@@ -260,9 +265,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //this is called from serialEvent function, and calles the packetReceived function in the MainWindow Class
     //(actually calls it for all listeners, but should only be one listener??)
 	@Override
-	public void packetReceived(String packet, byte[] byteArray, int byteArrayInd) {
+	public void packetReceived(String packet, byte[] byteArray) {
 		for (int i = 0; i < listeners.size(); i++)
-			listeners.get(i).packetReceived(packet, byteArray, byteArrayInd);
+			listeners.get(i).packetReceived(packet, byteArray);
 	}
 	
 
@@ -292,134 +297,122 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
      *  if new data is receieved BEFORE processing this event.  This is poorly setup - it should read until not available
      *  not just read a single byte: otherwise, if a two bytes are received before the 1st is processed, it will forever be
      *  behind 'real' time and the buffer will increase in length
+     *  
+     *  I'm not sure how true ^ is. I am also unsure if having it wait until the end of a packet can cause certain aspects of the GUI
+     *  to hang as it's waiting for a complete message
      */    
     public void serialEvent(SerialPortEvent evt) {
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
             	
-	        	int singleData; 
+	        	int newByte; 
       	
-	        	//note: have to be careful since 
-	        	while((singleData = input.read()) > -1)
+	        	//THIS LOOP GETS A COMPLETE PACKET
+	        	//note: this blocks until data is available, so don't have to worry about going through while with repeated data
+	        	while((newByte = input.read()) > -1)
 	        	{	
        		
-					received.append(new String(new byte[] {(byte)singleData}));
-					receivedBytes[byteInd++] = (byte)singleData;  //shouldn't lose information, since singleData is int between 0-255
+					received.append(new String(new byte[] {(byte)newByte}));
+					receivedBytes[byteInd++] = (byte)newByte;  //shouldn't lose information, since newByte is int between 0-255
 
-					           			
-					if(byteInd > 80)  //something missed the end, reset
+					//If the received buffer is too long (somehow missed end, corrupted data, etc). Wipe clean and get a fresh start
+					//TODO - analyze threshold. At first connect, might be many characters into packet, and still want to get that first one
+						//So have threshold at double DATA_PACKET_L??
+					//TODO - Maybe have the start be '**' instead of '*'					
+					if(byteInd > 2*DATA_PACKET_L) 
 					{
-						LOGGER.info("Resetting byte Index (since > 80)");
+						LOGGER.info("Invalid Packet (Too long), resetting received buffer");
 						byteInd = 0;
 						received.delete(0, received.length());      	
-						packetStart = packetEnd = -1;
-		
+						packetStartInd = packetEndInd = -1;
 					}
 					
-					if(singleData == 42 && packetStart == -1)  // 42 = '*'   the start of packet character, and == -1 to ensure it isn't reset						
-					{	packetStart = byteInd-1;
-
-					}
-					else if(singleData == 101)  //101 = 'e' which is end of packet character.  It must come twice (avoid case where float bytewise rep. has end of packet character in it
+					//IF we receive the start character AND we are not currently in the middle of a valid packet, we assume 
+					//to be at the start of a valid packet (if already have a packetStartInd, we assume the '*' is part of bytewise data message
+					if(newByte == START_CHAR && packetStartInd == -1) 						
 					{	
-											
-						if(firstEndCharInd != -1 && byteInd == (firstEndCharInd+1))
-						{	packetEnd = byteInd;  //this points indexOf("&")+1
+						packetStartInd = byteInd-1;
+					}
+					
+					/* UNTESTED CLEARER WAY OF DOING BELOW  */
+					//If at current byte and previous byte are both 'END_CHAR', then we have a correct 'end packet sequence'
+					//Note byteEnd has already been incremented at this pt, hence [byteInd - 2] to get the previous byte received
+					else if(byteInd >= 2 && receivedBytes[byteInd-2] == END_CHAR && newByte == END_CHAR) 
+					{
+						packetEndInd = byteInd-1;  //(Note the '-1' since already incremented byteInd)
+						break;
+						
+						/* Notes on the chances of a false 'end packet sequence' (ie. END_CHAR showing up as back to back bytes in a float)
+						 *1. Without accoutns for distribution, it's 1/65025, or with 6-7 floats received is ~0.01%)
+						 *2. I did the analysis of actual distribution (excel file 'randomFloatByteDistribution') and out of 4 bytes, 
+						 * the top byte can never be END_CHAR, and in for the other bytes it is less likely (so even lower than 0.01%)
+						 *3. The 'seconds' value is sent last, and is a short between 0-60, and therefore never has the value END_CHAR. 
+						 * This removes the possibility that 1/256 packets it ends one too short
+						 */
+
+					}				
+					
+					/******* OLD METHOD *************  -> REMOVE AFTER TESTING
+					//IF we receive the end character. For it to be the end of the packet, the end character must come twice (Checked inside)
+					else if(newByte == END_CHAR)  
+					{	
+						//IF the current byte index is equal to one greater than the last received END_CHAR's index (and it's not index 0), 
+						//then we have a correct 'end packet sequence' so leave the while loop 
+						if(byteInd == (mostRecentEndCharInd+1) && byteInd != 0)
+						{	
+							packetEndInd = byteInd;  //this points indexOf("&")+1
 							break; //analyze the packet        
 						}
+						//We set the index of most recent END_CHAR to the current index
 						else
-							firstEndCharInd = byteInd;  //first time through it will set to true. If two adjacent 'e' received, then next time will get into first if. Otherwise will reset this
+							mostRecentEndCharInd = byteInd;  //first time through it will set to true. If two adjacent 'e' received, then next time will get into first if. Otherwise will reset this
 						
-						//note seconds are last sent, and they can never be 'e' (since value between 0-60. 
-					}	
+						
+					}	*/
 	        	}     	
 	            	
 	        	String temp = received.toString();
-	        	String str; 			            			
-	            
-	        	//If have * and ee, both packetEnd and packetStart will be non-zero. Two cases: 
-	        	// if there are exactly 35 characters, and second character is p, then have a data packet
-	        	//If packetStart < packetEnd, and packetStart >= 0 and packetEnd >= 0, then it's a simple message (ie. Reset Acknowledged)
-	        	//if packetEnd is not -1 and neither of those are true, it's a bad packet and we reset
-				if(packetEnd == (packetStart+35) && temp.substring(packetStart+1, packetStart+2).equals("p"))  //data string
+	        	String str; 
+	        	
+	        	//After reaching here, we have had a '*' <some values> then 'ee'
+	        	//We now want to determine whether it is a valid packet -> certain characteristics about start/end index should be true
+	                   	
+	        	//Conditions:
+				//i) The start index is less than the end index AND
+				//ii) The end index is greater than 0 AND 
+				//iii) The start index is not -1 (otherwise we haven't started packet). This could occur on first connection, 
+						//when receiving the tail end of previous packet, would reach this point without a '*' being detected 
+				if(packetEndInd == (packetStartInd+DATA_PACKET_L) && temp.substring(packetStartInd+1, packetStartInd+2).equals("p"))  
 				{
-					str = temp.substring(packetStart+1, packetEnd-1);  //* and & are removed by this function
-	    			packetReceived(str, receivedBytes.clone(), packetStart+2);  //+2 to get do start of data (past *p)
-					byteInd = 0;
-					packetStart = packetEnd = firstEndCharInd = -1;
-	    			received.delete(0, received.length());
-	    				
+					//If not a data packet (! 'p' thing) OR it is the correct length to be a data packet, then it's good)
+					if(!temp.substring(packetStartInd+1, packetStartInd+2).equals("p") || packetEndInd == (packetStartInd+DATA_PACKET_L))
+					{
+						str = temp.substring(packetStartInd+1, packetEndInd-1);  //* and ee are removed by this function (end ind is non-inclusive)
+		    			packetReceived(str, receivedBytes.clone());     				
+					}
+					else  //Data packet with a bad length (filter before attempting to analyze it, as that will access out of bounds indicies)
+					{
+						System.out.println("Bad Data Packet of Length " + (packetEndInd-packetStartInd));
+		    			invalidPacketReceived(temp);		
+					}
 				}
-				else if(packetStart < packetEnd && packetEnd >= 0 && packetStart >= 0) 
+				//Bad Packet (if above not fulfilled, bad packet)
+				else   
 				{
-					str = temp.substring(packetStart+1, packetEnd-1);  //* and & are removed by this function
-	        		packetReceived(str, receivedBytes.clone(), -1);  //-1 indicates non-data string         
-	        		byteInd = 0;
-					packetStart = packetEnd = firstEndCharInd = -1;
-	    			received.delete(0, received.length());
-					
+					System.out.println("Bad Start/End Packet Ind, Length = " + (packetEndInd-packetStartInd));				
+	    			invalidPacketReceived(temp);		
 				}
-				else if(packetEnd != -1)  //if packetEnd is not -1 and doesn't fit above boxes, means we have bad packet
-				{
-					LOGGER.info("PE - PS = " + (packetEnd-packetStart));
+				
+				//Regardless of the 'case', we reset the variables and delete the received 
+				byteInd = 0;
+				packetStartInd = packetEndInd = mostRecentEndCharInd = -1;
+				if(received.length() > 0)  //not sure if this is necessary, but add to be safe
 					received.delete(0, received.length());
-	    			invalidPacketReceived(temp);
-	    			byteInd = 0;
-					packetStart = packetEnd = firstEndCharInd = -1;
-				}
 	        }
 	        catch (Exception e) {
 	            LOGGER.warning("Failed to read data.");
 	            e.printStackTrace();
-	        }
-            	 
-            	
-            /* Old way - works for sure, save just in case	
-            	
-            	// Code to read more than one value is receiving data at high baud rate (since event only generated after buffer has been cleared)
-            	int singleData; 
-            	//System.out.print("Recevied: ");
-            	while((singleData = input.read()) > -1)
-            	{	
-            		if(singleData != 64 && singleData != 224)    //64 = @, 'test' character. If at 9600 baud, @ is sent as 224  
-            		{
-            			received.append(new String(new byte[] {(byte)singleData}));   			
-            		           			
-
-            			if(singleData == 38)  //38 = '&' which is end of packet character.  
-            				break;
-            		}	
-            		else
-            			System.out.println("Received test character");
-            		
-            			
-            	}
-            
-                     	          	
-                String str;
-            	String temp = received.toString();
-            	if (temp.contains("*") && temp.contains("&")) {  //* is start character,  & is finish character
-            		if (temp.indexOf("*") < temp.indexOf("&")) {
-            			str = temp.substring(temp.indexOf("*")+1, temp.indexOf("&"));  //* and & are removed by this function
-            			temp = temp.substring(temp.indexOf("&")+1, temp.length());
-            			received.delete(0, received.length());
-            			received.insert(0, temp);
-            			packetReceived(str);
-            		}
-            		else {
-            			temp = temp.substring(temp.indexOf("*"));  //this assumes that the received values from * onwards are part of a new, valid packet
-            			received.delete(0, received.length());
-            			received.insert(0, temp);
-            			invalidPacketReceived(temp);
-            		}
-            	}            }
-            catch (Exception e) {
-                System.out.println("Failed to read data.");
-                e.printStackTrace();
-            }
-            
-            */
-            
+	        }           
         }
     }
     
