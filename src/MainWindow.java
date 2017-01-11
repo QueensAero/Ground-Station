@@ -5,58 +5,29 @@ import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-
-
-
-
-
 import javax.swing.JPanel;
-
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.Random;
-import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
-
 import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.BoxLayout;
-import javax.swing.InputMap;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.JComboBox;
 import javax.swing.JButton;
 import javax.swing.KeyStroke;
@@ -64,7 +35,6 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.Timer;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.DefaultCaret;
 
 /* Commented by Ryan Dowling, Dec. 2015
@@ -664,10 +634,10 @@ public class MainWindow extends JPanel implements PacketListener {
 			
 		if(str.substring(0, 1).equals("p")){ //'p' indicates data packet
 			
-			double [] dblArr = new double [5]; //was 4 before, added LAT/Long/Heading/
+			double [] dblArr = new double [5];
 			int [] timeArr = new int[2];  //S, MS
 			
-			for(int x = 0; x < 7; x++)  //extract 7 float values (which are cast to double)
+			for(int x = 0; x < 5; x++)  //extract 5 float values (which are cast to double)
 			{	
 				dblArr[x] = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
 				
@@ -737,9 +707,7 @@ public class MainWindow extends JPanel implements PacketListener {
 				double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
 				LOGGER.info("Altitude at drop = " + altitudeAtDrop);  //print result to console
 			} catch(Exception e){  //Invalid double - still want to see what we got back
-				
-				System.out.print("Error while parsing returned altitude - raw string is:  ");
-				System.out.println(str);
+				LOGGER.warning("Error while parsing returned altitude - raw string is:  " + str);
 			}
 		}
 		else if (str.substring(0, 1).equals("s")) {
