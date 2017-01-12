@@ -335,8 +335,10 @@ public class VideoFeed extends JPanel{
 
 		
 			doRecording(modifiedFrame);
-								  
-			drawHorizon(modifiedFrame);
+			
+			// This has been removed, because we currently do not measure the roll:
+			//drawHorizon(modifiedFrame);
+
 
 			modifiedFrame.setTransform(saveXform); // Restore initial transform
     	} else {
@@ -461,7 +463,8 @@ public class VideoFeed extends JPanel{
 	private final static int r = (cols-100)/2;  //radius of line
 	private final static int verticalOffset = 100;
 	
-	private void drawHorizon(Graphics2D g){		//let 0 degrees be neutral, and -45 degrees be \  and 45 degrees be /
+	// Draws the horizon on the video feed to give a more intuitive representation of the current roll
+	private void drawHorizon(Graphics2D g) {	//let 0 degrees be neutral, and -45 degrees be \  and 45 degrees be /
 		
 		double angle = -rollAng;  //when I made this i guessed wrong 
 		
@@ -492,8 +495,6 @@ public class VideoFeed extends JPanel{
 		g.draw(mid);
 		g.draw(top);
 		g.draw(bot);
-		
-		
 	}
 	
 	
