@@ -309,7 +309,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	        	//note: this blocks until data is available, so don't have to worry about going through while with repeated data
 	        	while((newByte = input.read()) > -1)
 	        	{	
-       		
+	        		System.out.print(newByte);
 					received.append(new String(new byte[] {(byte)newByte}));
 					receivedBytes[byteInd++] = (byte)newByte;  //shouldn't lose information, since newByte is int between 0-255
 
