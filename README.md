@@ -1,13 +1,20 @@
 # Ground-Station
-## Installation Instructions
-The installation instructions assume that users have already installed a JDK and Eclipse. The next person who does this from scratch should add instructions here (or put a link to a tutorial).
+## Summary
+The Ground-Station project is the graphical user interface used to monitor and communicate with the plane during flights. Some of the important features include:
+* Send commands to the plane via XBees
+* Receive and display sensor data in real time (altitude, speed, GPS position)
+* Display the live video feed from the plane
+* GPS Targeting: Determine optimal drop time based on GPS data
+* Log all data for post-flight review
 
-1. Download the source code as a .zip file or clone the repository.
-2. If on a Windows machine, navigate to "\<Install Dir>/Ground-Station/lib/windows" and run the "configure.bat" script. If on a Mac, navigate to '\<Install Dir>/Ground-Station/lib/macos' and run the "configure.command" script.
-3. Launch Eclipse.
-4. In Eclipse, click on "File > Import..."
-5. Select the "Existing Projects into Workspace" option, and click "Next".
-![Alt text](img/ExistingProject.png?raw=true "Existing Project into Workspace")
-6. Navigate to the location of the "Ground-Station" folder and select the "Aero_GroundStation" project. Click "Finish"
-![Alt text](img/GroundStationFolder.png?raw=true "Select Ground-Station Folder")
-7. You're ready to go! To build for the first time, right-click on the project "Run As -> Java Application".
+The following pages are intended to be helpful resources for people who are new to this project. Everyone is encouraged to contribute new 'readme' pages when they come across something that hasn't been documented and might be helpful for someone else. These resources can save a lot of time for new developpers! Here are some ideas for helpful pages that I haven't had time to write up myself:
+* A summary of the communication protocol used between the plane and the ground-station (an overview of what each character means)
+* An introduction to the basics of git
+* An explanation of the GPS tracking algorithm with images. (The code can be hard to read, so this will help anyone trying to undertand it for the first time)
+
+## Index
+[Getting Started](installation.md)
+
+[Adding External Libraries](libraries.md)
+
+[Logging](logging.md)

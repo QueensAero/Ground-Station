@@ -2,10 +2,12 @@ import javax.swing.JOptionPane;
 import javax.swing.JDialog;
 import javax.swing.JTextField;
 import java.beans.*; //property change stuff
+import java.util.logging.Logger;
 import java.awt.*;
 import java.awt.event.*;
 
 class GPSTargetDialog extends JDialog implements ActionListener, PropertyChangeListener {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
     private String typedText = null;
     private JTextField latTextField;
     private JTextField lonTextField;

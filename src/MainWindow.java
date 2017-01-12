@@ -5,53 +5,29 @@ import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-
-
-
-
-
 import javax.swing.JPanel;
-
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.Random;
-import java.util.TimeZone;
-
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
 import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.BoxLayout;
-import javax.swing.InputMap;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.JComboBox;
 import javax.swing.JButton;
 import javax.swing.KeyStroke;
@@ -59,7 +35,6 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.Timer;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.DefaultCaret;
 
 /* Commented by Ryan Dowling, Dec. 2015
@@ -70,18 +45,18 @@ import javax.swing.text.DefaultCaret;
  */
 
 public class MainWindow extends JPanel implements PacketListener {
-	
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
+	private StreamHandler consoleLogger;
 	public VideoFeed videoFeed;
 	public Targeter targeter;
 	private JComboBox commPortSelector;
-	private JButton btnRefresh, btnConnect, btnToggleLogging; //connection buttons
-	private JButton btnEnable, btnSave, btnClearData, btnRequestAltAtDrop;
+	private JButton btnRefresh, btnConnect; //connection buttons
+	private JButton btnEnable, btnClearData, btnRequestAltAtDrop;
 	private JButton btnToggleAutoDrop, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
-	public PrintStream planeMessageConsole, dataLogger;
-	private JTextArea planeMessageTextArea, dataLoggerTextArea, consoleTextArea;
+	private JTextArea consoleTextArea;
 	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblHead, lblTS, lblAltAtDrop; //labels to display the values
 	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
@@ -98,159 +73,25 @@ public class MainWindow extends JPanel implements PacketListener {
 	SimpleDateFormat sdf;
 	String startDate;
 	long startTime = 0;
-
 	
 	//constructor
 	public MainWindow (SerialCommunicator sc, JFrame frame) {
 		serialComm = sc;
-
+		
 		initializeComponents();
 
 		initializeButtons();
 		
-		 ActionListener loggingAL = new ActionListener() {
-		      public void actionPerformed(ActionEvent evt) {
-		         logData();
-		      }
-		  };
-		  
-		  
-		threadTimer = new Timer(100, loggingAL);  //33 ms ~30FPS
-		
 		parentFrame = frame;
+		
 		gpsTargetDialog = new GPSTargetDialog(frame, "GPS Target", this);
 		gpsTargetDialog.pack();
-		
-		//Uncomment to having logging start at program start (DO THIS FOR COMPETITION)
-		//initLogging();
-		//threadTimer.start();
-		
-		/* Testing for I/O stuff (delete later)
-		int a = 0b01000000, b = 0b00111000,	c = 0b00110101,	d = 0b00110001; 		//a = 0b01000000, = 64 as int, which as string is "64"
-	
-		StringBuffer test = new StringBuffer();
-		test.append(a);  test.append(b);	test.append(c);		test.append(d);
-		String temp = test.toString();
-		int index = 0;
-		byte testByte1 = Byte.parseByte(temp.substring(index++, ++index));
-		byte testByte2 = Byte.parseByte(temp.substring(index++, ++index));
-		byte testByte3 = Byte.parseByte(temp.substring(index++, ++index));
-		byte testByte4 = Byte.parseByte(temp.substring(index++, ++index));
-		int asInt = (testByte4 & 0xFF) | ((testByte3 & 0xFF) << 8) | ((testByte2 & 0xFF) << 16)  | ((testByte1 & 0xFF) << 24);
-		float asFloat = Float.intBitsToFloat(asInt);
-		System.out.println("S: " + temp + " I: " + asInt + " F: " + asFloat);
-		
-		int one = 200;
-		byte hello = (byte)one;
-		int two = (int)(hello & 0xFF);
-		System.out.println("Two = " + two);  */
-		
-		
-		/* Testing distribution of bytes within a float
-		float rand;
-		int [] freq1 = new int[256];
-		int [] freq2 = new int[256];
-		int [] freq3 = new int[256];
-		int [] freq4 = new int[256];
-
-		
-		
-		Random randomGen = new Random();
-		for(int i = 0; i < 1000000; i++)
-		{	
-			rand = randomGen.nextFloat()*5000;
-			
-			int floatBits = Float.floatToRawIntBits(rand);
-			freq1[(int)(floatBits & 0xFF)]++;
-			freq2[(int)((floatBits & 0xFF00) >> 8)]++;
-			freq3[(int)((floatBits & 0xFF0000) >> 16)]++;
-			freq4[(int)((floatBits & 0xFF000000) >> 24)]++;
-		}
-		
-		
-		for(int i = 0; i < 256; i++)
-			System.out.print(freq1[i] + ",");
-		System.out.println("");
-		for(int i = 0; i < 256; i++)
-			System.out.print(freq2[i] + ",");
-		System.out.println("");
-		for(int i = 0; i < 256; i++)
-			System.out.print(freq3[i] + ",");
-		System.out.println("");
-		for(int i = 0; i < 256; i++)
-			System.out.print(freq4[i] + ",");
-		System.out.println("");  */
-		
 	}
 	
-	
-	
-	
-	
-	private void initLogging(){
-		
-		
-		sdf = new SimpleDateFormat("MM.dd.yyyy_h.mm.ss.SSS");
-		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-		
-		//set timestamp
-		Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
-		startDate = new String(sdf.format(date)); ;
-				
-		
-		//START OUTPUT STREAM
-		//logPath = Paths.get("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
-		//		"Aero" + File.separator + "LogFiles" + File.separator + startDate + "_log.txt");
-		
-		JFileChooser logFile = new JFileChooser();
-        logFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
-        logFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        int val = logFile.showSaveDialog(null);
-        if (val == JFileChooser.APPROVE_OPTION) {                		
-        	String filename = logFile.getSelectedFile().toString();
-        	try {
-        	if (logFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
-        		filename += ".txt";
-        	} catch (Exception err) {}
-        	logPath = Paths.get(filename);
-        }
-		
-		/*
-		// Create "LogFiles" folder if it does not exist:
-		try {
-			Files.createDirectories(logPath.getParent());
-		} catch (IOException e2) {
-			System.err.println("Could not create directory: " + logPath.getParent());
-		}
-		*/
-		// Create log file:
-        try {
-            Files.createFile(logPath);
-        } catch (FileAlreadyExistsException e) {
-            System.err.println("File already exists: " + logPath);
-        } catch (IOException e) {
-        	System.err.println("Could not create file: " + logPath);
-        }
-        String s = "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
-        
-        try {
-            Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
-        } catch (IOException e) {
-        // It's really hard to recover from an IOException. Should probably just notify user and stop recording.
-            System.err.println("Could not write to file: " + logPath);
-        }
-        
-        startTime = System.currentTimeMillis();
-		
-	}
-
-
 	private void logData() {
-		
-		//Date date = new Date(new Timestamp(System.currentTimeMillis()).getTime());
 		LocalDateTime now = LocalDateTime.now();
-		
-		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() +targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
+		//Log format: "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() + targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
 					+ "." + now.getMinute() +"."+ (now.getSecond() + now.get(ChronoField.MILLI_OF_SECOND)/1000.0) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
 					+ "," + String.format("%.4f",videoFeed.rollAng) + "," + String.format("%.4f",videoFeed.pitchAng) + "," + String.format("%.4f",videoFeed.airSpd) + "," 
 					+ String.format("%.4f",videoFeed.altitude) + "," + String.format("%.4f",videoFeed.lattitude) + ","	+ String.format("%.4f",videoFeed.longitude) + "," 
@@ -258,22 +99,8 @@ public class MainWindow extends JPanel implements PacketListener {
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
 					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDrop) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
 					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "\n";
-			
-				
-		
-		try {
-			// I believe that this opens and closes the file every time we write a line. (Every frame in the video feed)
-			// If this is too slow, then we will have to either set up a BufferedWriter and just close it when we are
-			// done recording, OR we could simply save the data in an array and then print it all when we're done recording.
-			Files.write(logPath, s.getBytes(), StandardOpenOption.APPEND);
-		} catch (IOException e) {
-			// It's really hard to recover from an IOException. Should probably just notify user and stop recording.
-			System.err.println("Could not write to file: " + logPath);
-		}		
-			
+		LOGGER.finer(s); // Log to file only
 	}
-	
-	
 		
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
@@ -290,13 +117,13 @@ public class MainWindow extends JPanel implements PacketListener {
 	private void updateCommPortSelector() {
 		commPortSelector.removeAllItems();
 		ArrayList<String> temp = serialComm.getPortList();
-		System.out.println("Available serial ports:");
+		String portList = "Available serial ports:";
 
 		for (int i = 0; i < temp.size(); i++) {
 			commPortSelector.addItem(temp.get(i));
-			System.out.print(temp.get(i) + ",");
+			portList += temp.get(i) + ",";
 		}
-		System.out.println();
+		LOGGER.info(portList);
 	}
 	
 	//function containing/initializing all the GUI button action listeners
@@ -304,17 +131,12 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		//since original state is not connected to COM, initially set all control buttons to disabled
 		setControlButtons(false);
-		
 			
 		/* ACTION LISTENERS */	
-			
 				
-			//when 'Clear' pressed.  Clears the console and plane messages window 
+			//when 'Clear' pressed.  Clears the console window 
 			btnClearData.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					dataLoggerTextArea.setText("");
-					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
-					planeMessageTextArea.setText("");
 					consoleTextArea.setText("");
 				}
 			});
@@ -351,22 +173,6 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
-			btnToggleLogging.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					
-					if(threadTimer.isRunning())
-						threadTimer.stop(); //note: by default Coalescing is on, meaning that it won't queue events
-					else
-					{	
-						initLogging();
-						threadTimer.start();
-					}
-						
-					
-				}
-			});
-		
-			
 			//when 'Enable/Disable Resets' Pressed
 			btnEnable.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
@@ -388,44 +194,8 @@ public class MainWindow extends JPanel implements PacketListener {
 						}
 					}
 					else {
-						System.out.println("Cannot enable sensor/plane resets. Comm. port not connected.");
+						LOGGER.warning("Cannot enable sensor/plane resets. Comm. port not connected.");
 					}
-				}
-			});
-			
-			
-			//when 'Save' pressed -> handles the saving of the received data area
-			btnSave.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-	                JFileChooser saveFile = new JFileChooser();
-	                saveFile.addChoosableFileFilter(new FileNameExtensionFilter("Text File (*.txt)", ".txt"));
-	                saveFile.setFileSelectionMode(JFileChooser.FILES_ONLY);
-	                int val = saveFile.showSaveDialog(null);
-	                if (val == JFileChooser.APPROVE_OPTION) {                		
-	                	String filename = saveFile.getSelectedFile().toString();
-	                	try {
-	                	if (saveFile.getFileFilter().getDescription().equals("Text File (*.txt)"))
-	                		filename += ".txt";
-	                	} catch (Exception err) {}
-	                	FileWriter fstream = null;
-	                	BufferedWriter writer = null;
-	                	String messages = planeMessageTextArea.getText();
-	                	String data = dataLoggerTextArea.getText();
-	                	System.out.println("Attempting to save data as \"" + filename + "\"");
-	                	try {
-	                		fstream = new FileWriter(filename);
-	                		writer = new BufferedWriter(fstream);
-	                		writer.write("Plane Messages:\n");
-	                		writer.write(messages);
-	                		writer.write("Data:\n");
-							writer.write(data);
-							writer.close();
-							System.out.println("File saved succesfully.");
-	                	} catch (IOException err) {
-	                		System.out.println("Error saving file.");
-	                		err.printStackTrace();
-	                	}
-	                }
 				}
 			});
 			
@@ -433,14 +203,14 @@ public class MainWindow extends JPanel implements PacketListener {
 				public void actionPerformed(ActionEvent e) {
 					// Toggle autoDrop enable, the plane should respond to tell us what mode it is in
 					serialComm.write('a');
-					planeMessageConsole.println("Toggle Auto-Drop sent.");
+					LOGGER.info("Toggle Auto-Drop sent.");
 				}
 			});
 			
 			//when 'Drop' pressed
 			btnDrop.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					dropPackage();  //sends command, set's flags, prints current time and altitude
+					dropPackage();  //sends command, sets flags, prints current time and altitude
 				}
 			});
 			
@@ -448,7 +218,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			btnCloseDropBay.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					serialComm.write('c');
-					planeMessageConsole.println("Close drop bay sent.");
+					LOGGER.info("Close drop bay sent.");
 				}
 			});
 			
@@ -459,22 +229,16 @@ public class MainWindow extends JPanel implements PacketListener {
 					if(btnDrop.isEnabled())
 						dropPackage();
 					else
-						planeMessageConsole.println("Shortcut ignored, drop not yet enabled");
+						LOGGER.warning("Shortcut ignored, drop not yet enabled");
 	            }				
 			});
-			
 			this.getInputMap(JPanel.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_D,KeyEvent.CTRL_DOWN_MASK + KeyEvent.SHIFT_DOWN_MASK),"dropHandle");
-			
-			
-			
 			
 			//when "reset sensor' pressed
 			btnSensorReset.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					serialComm.write('r');
-					planeMessageConsole.println("Reset sent.");
-					dataLoggerTextArea.setText("");
-					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
+					LOGGER.info("Reset sent.");
 				}
 			});
 			
@@ -482,42 +246,37 @@ public class MainWindow extends JPanel implements PacketListener {
 			btnPlaneRestart.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					serialComm.write('q');  //send the command to plane
-					planeMessageConsole.println("Restart sent."); 
-					dataLoggerTextArea.setText("");  //delete old text
+					LOGGER.info("Restart sent."); 
 					videoFeed.changeDropStatus(false);	
 					targeter.setDropStatus(false);
-					dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
 				}
 			});
 			
 			//when Start/Stop Recording is pressed
 			btnStartRecording.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					
 					videoFeed.toggleRecordingStatus();  //call to function in VideoFeed to toggle the recording status
 				}
 			});
 			
 			btnRestartStream.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					
 					videoFeed.restartVideoStream();   //OpenCV Dependance
 				}
 			});
 			
 			btnResetDrop.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					
 					lblAltAtDrop.setText(" ");
 					videoFeed.changeDropStatus(false);	
 					targeter.setDropStatus(false);
-					
 				}
 			});
 			
 			btnRequestAltAtDrop.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
-					serialComm.write('g');  //send command to request the altitude at drop value					
+					serialComm.write('g');  //send command to request the altitude at drop value
+					LOGGER.info("Altitude at drop requested.");
 				}
 			});
 			
@@ -526,20 +285,17 @@ public class MainWindow extends JPanel implements PacketListener {
 					gpsTargetDialog.setVisible(true);
 				}
 			});
-			
-			
 	}/* END INITIALIZE BUTTONS */
 	
 	//called when drop command sent. Updates flag, prints out time and altitude of drop
 	private void dropPackage() {
 		serialComm.write('o');  //send drop command to arduino
-		planeMessageConsole.println("Drop package sent.");
+		LOGGER.info("Drop package sent.");
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		System.out.println(time + "s: Package dropped at: "+lblAlt.getText() + " ft");
 		lblAltAtDrop.setText(lblAlt.getText());
 		videoFeed.changeDropStatus(true);	
 		targeter.setDropStatus(true);
-		
 	}
 	
 	
@@ -635,28 +391,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		leftPanel.add(gpsTargetPanel, c);
 		
-		// planeMessagePanel
-		JPanel planeMessagePanel = new JPanel(); //Panel containing the plane messages
-		planeMessagePanel.setBorder(new TitledBorder(new EtchedBorder(), "Plane Messages"));
-		planeMessagePanel.setLayout(new BorderLayout());
-		planeMessagePanel.setMinimumSize(new Dimension(minWidth, 60));
-		planeMessagePanel.setPreferredSize(new Dimension(preferredWidth, 200));
-		planeMessageTextArea = new JTextArea();
-		JScrollPane planeMessageScroller = new JScrollPane(planeMessageTextArea);
-		planeMessageConsole = new PrintStream(new TextAreaOutputStream(planeMessageTextArea));
-		planeMessageScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		DefaultCaret planeMessageCaret = (DefaultCaret)planeMessageTextArea.getCaret();
-		planeMessageCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-		planeMessagePanel.add(planeMessageScroller);
-		c.gridx = 0;
-		c.gridy = 4;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 1;
-		c.fill = GridBagConstraints.BOTH;
-		leftPanel.add(planeMessagePanel, c);
-		
 		// consolePanel
 		//Panel containing the console (System.out is mapped to here)
 		JPanel consolePanel = new JPanel();
@@ -670,7 +404,18 @@ public class MainWindow extends JPanel implements PacketListener {
 		consoleScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		DefaultCaret consoleCaret = (DefaultCaret)consoleTextArea.getCaret();
 		consoleCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-		System.setOut(console);
+		consoleLogger = new StreamHandler(console, new SimpleFormatter()){
+			// Override publish so that log records get flushed immediately
+			// Without this, the log handler may not print until the buffer fills up
+	        @Override
+	        public synchronized void publish(final LogRecord record) {
+	            super.publish(record);
+	            flush();
+	        }
+		};
+		LOGGER.addHandler(consoleLogger);
+		consoleLogger.setLevel(Level.INFO); // All logging records with level of INFO or higher will be displayed in the 'console'
+		System.setOut(console); // stdout and stderr will also be logged to the console
 		System.setErr(console);
 		consolePanel.add(consoleScroller);
 		c.gridx = 0;
@@ -681,32 +426,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 1;
 		c.fill = GridBagConstraints.BOTH;
 		leftPanel.add(consolePanel, c);
-		
-		// logPanel
-		//panel cotaining the data logging
-		JPanel logPanel = new JPanel();
-		logPanel.setLayout(new BorderLayout());
-		logPanel.setMinimumSize(new Dimension(minWidth, 60));
-		logPanel.setPreferredSize(new Dimension(preferredWidth, 200));
-		dataLoggerTextArea = new JTextArea();
-		dataLoggerTextArea.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		dataLoggerTextArea.setMinimumSize(new Dimension(640, 300));	//added, don't think it does anything
-		JScrollPane dataLoggerScroller = new JScrollPane(dataLoggerTextArea);
-		dataLogger = new PrintStream(new TextAreaOutputStream(dataLoggerTextArea));
-		dataLoggerScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-		DefaultCaret dataLoggerCater = (DefaultCaret)dataLoggerTextArea.getCaret();
-		dataLoggerCater.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-		logPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data Logger"));
-		logPanel.add(dataLoggerScroller, BorderLayout.CENTER);
-		dataLogger.println("TIME, ROLL, PITCH, ALT, SPEED, LATT, LONG, HEAD, TIME");
-		c.gridx = 0;
-		c.gridy = 6;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 1;
-		c.fill = GridBagConstraints.BOTH;
-		leftPanel.add(logPanel, c);
 		
 		
 		/***** Right Side: *****/
@@ -752,9 +471,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnEnable = new JButton("Enable/Disable Resets");
 		servoButtonPanel.add(btnEnable);
-		
-		btnSave = new JButton("Save");
-		servoButtonPanel.add(btnSave);
 		
 		btnToggleAutoDrop = new JButton("Enable AutoDrop");
 		servoButtonPanel.add(btnToggleAutoDrop);
@@ -820,8 +536,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c2.gridx = 4;
 		c2.gridy = 1;
 
-		btnToggleLogging = new JButton("Toggle Logging");
-		commPortControlPanel.add(btnToggleLogging, c2);
 		return commPortControlPanel;
 	}
 	private JPanel initializeDataPanel() {
@@ -920,10 +634,10 @@ public class MainWindow extends JPanel implements PacketListener {
 			
 		if(str.substring(0, 1).equals("p")){ //'p' indicates data packet
 			
-			double [] dblArr = new double [5]; //was 4 before, added LAT/Long/Heading/
+			double [] dblArr = new double [5];
 			int [] timeArr = new int[2];  //S, MS
 			
-			for(int x = 0; x < 7; x++)  //extract 7 float values (which are cast to double)
+			for(int x = 0; x < 5; x++)  //extract 5 float values (which are cast to double)
 			{	
 				dblArr[x] = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
 				
@@ -976,12 +690,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			//Skip lattitude, longitude
 			lblHead.setText(""+dblArr[ind + 2]);  lblTS.setText(""+(timeArr[0]+timeArr[1]/1000.0));	
 			
-			
 			LocalDateTime now = LocalDateTime.now();
-
-			//print to logging screen
-			dataLogger.println(time + "," + dblArr[0] + "," + dblArr[1] + "," + dblArr[2] + "," + dblArr[3] + "," + dblArr[4] + "," + dblArr[5] + "," + dblArr[6] 
-									+ "," + (timeArr[0]+timeArr[1]/1000.0) );
 			
 			//Update data in VideoFeed Class 
 			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
@@ -989,69 +698,66 @@ public class MainWindow extends JPanel implements PacketListener {
 			//update targeting stuff
 			targeter.updateGPSData(dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
 
-			
+			logData(); // Log the new state each time new data is received 
 		}
 		else if (str.substring(0, 1).equals("a")) {  //have requested the altitude at drop be returned
 			String altAsString = str.substring(str.indexOf("a") + 1);  //remove a from front
 			altAsString = altAsString.substring(0, altAsString.indexOf("%"));  //remove % and anything after it
 			try{
 				double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
-				planeMessageConsole.println("Altitude at drop = " + altitudeAtDrop);  //print result to console
+				LOGGER.info("Altitude at drop = " + altitudeAtDrop);  //print result to console
 			} catch(Exception e){  //Invalid double - still want to see what we got back
-				
-				System.out.print("Error while parsing returned altitude - raw string is:  ");
-				System.out.println(str);
+				LOGGER.warning("Error while parsing returned altitude - raw string is:  " + str);
 			}
-			
 		}
 		else if (str.substring(0, 1).equals("s")) {
-			planeMessageConsole.println(time + "s: Start");
+			LOGGER.info(time + "s: Start");
 		}
 		else if (str.substring(0, 1).equals("k")) {
-			planeMessageConsole.println(time + "s: Reset Acknowledge");
+			LOGGER.info(time + "s: Reset Acknowledge");
 		}
 		else if (str.substring(0, 1).equals("q")) {
-			planeMessageConsole.println(time + "s: Restart Acknowledge");
+			LOGGER.info(time + "s: Restart Acknowledge");
 		}
 		else if (str.substring(0, 1).equals("x")) {
-			planeMessageConsole.println(time + "s: Camera Reset Acknowledge");
+			LOGGER.info(time + "s: Camera Reset Acknowledge");
 		}
 		else if (str.substring(0, 1).equals("e")) {
-			planeMessageConsole.println(time + "s: Error");
+			LOGGER.info(time + "s: Error");
 		}
 		else if (str.substring(0, 1).equals("y")) {
-			planeMessageConsole.println(time + "s: Drop Acknowledge");
+			LOGGER.info(time + "s: Drop Acknowledge");
 		}
 		else if (str.substring(0, 1).equals("b")) {
-			planeMessageConsole.println(time + "s: Auto Drop ON confirmation.");
+			LOGGER.info(time + "s: Auto Drop ON confirmation.");
 			targeter.setAutoDropEnabled(true);
 			btnToggleAutoDrop.setText("Disable AutoDrop");
 		}
 		else if (str.substring(0, 1).equals("d")) {
-			planeMessageConsole.println(time + "s: Auto Drop OFF confirmation.");
+			LOGGER.info(time + "s: Auto Drop OFF confirmation.");
 			targeter.setAutoDropEnabled(false);
 			btnToggleAutoDrop.setText("Enable AutoDrop");
 		}
 		else if (str.substring(0, 1).equals("o")) {
-			planeMessageConsole.println(time + "s: Open Drop Bay Acknowledge");
+			LOGGER.info(time + "s: Open Drop Bay Acknowledge");
 		}
 		else if(str.substring(0, 1).equals("c")) {
-			planeMessageConsole.println(time + "s: Close Drop Bay Acknowledge");
+			LOGGER.info(time + "s: Close Drop Bay Acknowledge");
 		}
 		else if (str.substring(0, 1).equals("1")) {
-			planeMessageConsole.println(time + "s: MPU6050 Ready");
+			LOGGER.info(time + "s: MPU6050 Ready");
 		}
 		else if (str.substring(0, 1).equals("2")) {
-			planeMessageConsole.println(time + "s: MPU6050 Failed");
+			LOGGER.info(time + "s: MPU6050 Failed");
 		}
 		else if (str.substring(0, 1).equals("3")) {
-			planeMessageConsole.println(time + "s: DMP Ready");
+			LOGGER.info(time + "s: DMP Ready");
 		}
 		else if (str.substring(0, 1).equals("4")) {
-			planeMessageConsole.println(time + "s: DMP Failed");
+			LOGGER.info(time + "s: DMP Failed");
 		}
 		else if (str.substring(0, 1).equals("5")) {
-			planeMessageConsole.println(time + "s: MPU6050 Initializing");
+			LOGGER.info(time + "s: MPU6050 Initializing");
 		}
 	}
 	

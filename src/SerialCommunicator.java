@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.TooManyListenersException;
+import java.util.logging.Logger;
 
 /* Commented by Ryan Dowling, Dec. 2015
  * Not positive in all comments, but best guesses (I didn't write this code)  
@@ -25,6 +26,7 @@ interface PacketListener {
 
 
 public class SerialCommunicator implements SerialPortEventListener, PacketListener {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	String packet;
 	ArrayList<PacketListener> listeners = new ArrayList<PacketListener>();
@@ -121,10 +123,10 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		
     		//update status bool and print success to console
     		connected = true;  
-    		System.out.println(selectedPort + " opened succesfully.");
+    		LOGGER.info(selectedPort + " opened succesfully.");
     		
     	} catch (Exception e) {
-    		System.out.println("Failed to connect to " + selectedPort);
+    		LOGGER.warning("Failed to connect to " + selectedPort);
     		e.printStackTrace();
     	}
     	
@@ -240,9 +242,9 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		serialPort.removeEventListener();
     		serialPort.close();
     		connected = false;
-    		System.out.println("Disconnect from " + serialPort.getName());
+    		LOGGER.info("Disconnect from " + serialPort.getName());
     	} catch (Exception e) {
-    		System.out.println("Failed to close " + serialPort.getName());
+    		LOGGER.warning("Failed to close " + serialPort.getName());
     		e.printStackTrace();
     	}
     }
@@ -254,7 +256,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		output = serialPort.getOutputStream();
     		return true;
     	} catch (Exception e) {
-    		System.out.println("Failed to initialize IO streams.");
+    		LOGGER.warning("Failed to initialize IO streams.");
     		e.printStackTrace();
     	}
     	return false;
@@ -283,7 +285,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
             serialPort.notifyOnDataAvailable(true);  //create event when input data available
         }
         catch (TooManyListenersException e) {
-            System.out.println("Too many listeners: " + e.toString());
+            LOGGER.warning("Too many listeners: " + e.toString());
         }
     }
     
@@ -319,7 +321,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 					//TODO - Maybe have the start be '**' instead of '*'					
 					if(byteInd > 2*DATA_PACKET_L) 
 					{
-						System.out.println("Invalid Packet (Too long), resetting received buffer");
+						LOGGER.info("Invalid Packet (Too long), resetting received buffer");
 						byteInd = 0;
 						received.delete(0, received.length());      	
 						packetStartInd = packetEndInd = -1;
@@ -406,13 +408,11 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 				packetStartInd = packetEndInd = mostRecentEndCharInd = -1;
 				if(received.length() > 0)  //not sure if this is necessary, but add to be safe
 					received.delete(0, received.length());
-				
 	        }
 	        catch (Exception e) {
-	            System.out.println("Failed to read data.");
+	            LOGGER.warning("Failed to read data.");
 	            e.printStackTrace();
-	        }
-                        
+	        }           
         }
     }
     
@@ -424,7 +424,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		output.flush();  //clear the output buffer - don't let it wait
     	}
     	catch (Exception e) {
-    		System.out.println("Write failed.");
+    		LOGGER.warning("Write failed.");
     		e.printStackTrace();
     	}
     }

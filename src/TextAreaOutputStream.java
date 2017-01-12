@@ -8,12 +8,14 @@ http://stackoverflow.com/questions/342990/create-java-console-inside-the-panel
 import java.awt.EventQueue;
 import java.io.*;
 import java.util.*;
+import java.util.logging.Logger;
+
 import javax.swing.*;
 
 public class TextAreaOutputStream
 extends OutputStream
 {
-
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 // *************************************************************************************************
 // INSTANCE MEMBERS
 // *************************************************************************************************

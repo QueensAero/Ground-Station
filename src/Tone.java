@@ -1,9 +1,12 @@
+import java.util.logging.Logger;
+
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
 public class Tone extends Thread {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
     private int currentPeriodms;
     private boolean lineStopped;
     AudioFormat af;

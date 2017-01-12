@@ -1,3 +1,4 @@
+import java.util.logging.Logger;
 
 /*
  * 
@@ -22,6 +23,7 @@
  *  
  */
 public class GPSTargeter {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	// Inputs
 	private GPSPos curPos;
 	private GPSPos targetPos;

@@ -1,6 +1,7 @@
-
+import java.util.logging.Logger;
 
 public class GPSPos {
+	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	private double latitude;
 	private double longitude;
