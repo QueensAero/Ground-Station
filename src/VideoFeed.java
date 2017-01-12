@@ -87,6 +87,9 @@ public class VideoFeed extends JPanel{
  	String startDate;   
 	//private DecimalFormat df = new DecimalFormat("#000.00");
 	SimpleDateFormat sdf;
+	
+	private int JPANEL_WIDTH = 1920/2;   //note assumes screen is 1920*1080
+
 		
 	//thread variables
 	Timer threadTimer; 
@@ -95,7 +98,7 @@ public class VideoFeed extends JPanel{
 	private BufferedImage img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
 
 	//state variables (containing information about current state of plane)
-	public double rollAng= 5, pitchAng = 6, airSpd = 7, altitude = 8; 
+	public double airSpd = 7, altitude = 8; 
 	public double lattitude, longitude;
 	public int  second, millisec;
 	public boolean isDropped = false;  
@@ -103,6 +106,7 @@ public class VideoFeed extends JPanel{
 	private boolean recordingVideo = false; boolean streamActive = false;
 	public int currentRecordingFN = 0;
 	public double frameRate = 0;
+	
 	
 	
 	private ImageWriter jpgWriter;
@@ -276,7 +280,7 @@ public class VideoFeed extends JPanel{
 			modifiedFrame.transform(scaleXform); // Apply scaling transform
     		
 			
-			modifiedFrame.drawImage(img, 0, 0, null);
+			modifiedFrame.drawImage(img, (int)(JPANEL_WIDTH/2-cols*scaleFactor/2), 0, null);
     		//Graphics2D modifiedFrame = img.createGraphics();
 
 			modifiedFrame.setFont(new Font("TimesRoman", Font.PLAIN, 20)); 
@@ -401,12 +405,10 @@ public class VideoFeed extends JPanel{
 	public boolean getRecordStatus() {  return recordingVideo;  }
 	
 	//if too many values, might want to send as enum/struct type? does java have that
-	public void updateValues(double roll, double pitch, double alt, double airspeed, double latt, double longit, double head, int sec, int ms)  //add more as necessary (ie. GPS).
+	public void updateValues(double alt, double airspeed, double latt, double longit, double head, int sec, int ms)  //add more as necessary (ie. GPS).
 	{
-		rollAng = roll;
 		airSpd = airspeed;
 		altitude = alt;
-		pitchAng = pitch;
 		lattitude = latt;
 		longitude = longit;
 		heading = head;
@@ -425,6 +427,8 @@ public class VideoFeed extends JPanel{
 	}
 
 	
+	
+	/**********  No longer track roll, but keep this as it could look cool if we have it in the future **********
 	// Draws the horizon on the video feed to give a more intuitive representation of the current roll
 	private void drawHorizon(Graphics2D g) {	//let 0 degrees be neutral, and -45 degrees be \  and 45 degrees be /
 		//some constants for the drawHorizon Function
@@ -460,7 +464,7 @@ public class VideoFeed extends JPanel{
 		g.draw(mid);
 		g.draw(top);
 		g.draw(bot);
-	}
+	}  */
 	
 	
 }

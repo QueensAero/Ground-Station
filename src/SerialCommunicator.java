@@ -45,7 +45,8 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	final static int BAUD_RATE = 115200;  //57600;  //9600
 	final static int START_CHAR = 42;
 	final static int END_CHAR = 101;
-	final static int DATA_PACKET_L = 27;
+	final static int DATA_PACKET_L = 27;  //NOTE -> if changes, must also update in MainWindow
+
 
 
 	
@@ -371,8 +372,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 					}	*/
 	        	}     	
 	            	
-	        	String temp = received.toString();
-	        	String str; 
+	        	String packet = received.toString();
 	        	
 	        	//After reaching here, we have had a '*' <some values> then 'ee'
 	        	//We now want to determine whether it is a valid packet -> certain characteristics about start/end index should be true
@@ -381,26 +381,16 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 				//i) The start index is less than the end index AND
 				//ii) The end index is greater than 0 AND 
 				//iii) The start index is not -1 (otherwise we haven't started packet). This could occur on first connection, 
-						//when receiving the tail end of previous packet, would reach this point without a '*' being detected 
-				if(packetEndInd == (packetStartInd+DATA_PACKET_L) && temp.substring(packetStartInd+1, packetStartInd+2).equals("p"))  
-				{
-					//If not a data packet (! 'p' thing) OR it is the correct length to be a data packet, then it's good)
-					if(!temp.substring(packetStartInd+1, packetStartInd+2).equals("p") || packetEndInd == (packetStartInd+DATA_PACKET_L))
-					{
-						str = temp.substring(packetStartInd+1, packetEndInd-1);  //* and ee are removed by this function (end ind is non-inclusive)
-		    			packetReceived(str, receivedBytes.clone());     				
-					}
-					else  //Data packet with a bad length (filter before attempting to analyze it, as that will access out of bounds indicies)
-					{
-						System.out.println("Bad Data Packet of Length " + (packetEndInd-packetStartInd));
-		    			invalidPacketReceived(temp);		
-					}
-				}
+						//when receiving the tail end of previous packet, would reach this point without a '*' being detected
+	        	if(packetStartInd < packetEndInd && packetEndInd > 0 && packetStartInd >= 0)
+	        	{	        		
+					packetReceived(packet, receivedBytes.clone());     									
+	        	}
 				//Bad Packet (if above not fulfilled, bad packet)
 				else   
 				{
 					System.out.println("Bad Start/End Packet Ind, Length = " + (packetEndInd-packetStartInd));				
-	    			invalidPacketReceived(temp);		
+	    			invalidPacketReceived(packet);		
 				}
 				
 				//Regardless of the 'case', we reset the variables and delete the received 

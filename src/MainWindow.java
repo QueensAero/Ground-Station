@@ -5,7 +5,10 @@ import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+
 import javax.swing.JPanel;
+
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -21,7 +24,9 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
+
 import javax.swing.AbstractAction;
+import javax.swing.BoxLayout;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -57,7 +62,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
 	private JTextArea consoleTextArea;
-	private JLabel lblRoll, lblPitch, lblSpeed, lblAlt, lblHead, lblTS, lblAltAtDrop; //labels to display the values
+	private JLabel lblAlt, lblAltAtDrop; //labels to display the values
 	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
@@ -93,7 +98,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		//Log format: "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
 		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() + targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
 					+ "." + now.getMinute() +"."+ (now.getSecond() + now.get(ChronoField.MILLI_OF_SECOND)/1000.0) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
-					+ "," + String.format("%.4f",videoFeed.rollAng) + "," + String.format("%.4f",videoFeed.pitchAng) + "," + String.format("%.4f",videoFeed.airSpd) + "," 
+					+ "," + String.format("%.4f",videoFeed.airSpd) + "," 
 					+ String.format("%.4f",videoFeed.altitude) + "," + String.format("%.4f",videoFeed.lattitude) + ","	+ String.format("%.4f",videoFeed.longitude) + "," 
 					+ String.format("%.3f",targeter.heading) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
@@ -319,8 +324,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		// dataPanel:
 		JPanel dataPanel = initializeDataPanel(); // Top left panel containing roll, pitch, speed , altitude, etc.
-		dataPanel.setMinimumSize(new Dimension(minWidth, 50));
-		dataPanel.setPreferredSize(new Dimension(preferredWidth, 50));
+		dataPanel.setMinimumSize(new Dimension(minWidth, 100));
+		dataPanel.setPreferredSize(new Dimension(preferredWidth, 100));
 		c.gridx = 0;
 		c.gridy = 0;
 		c.gridwidth = 1;
@@ -432,14 +437,14 @@ public class MainWindow extends JPanel implements PacketListener {
 		// Video Feed:
 		JPanel videoFeedPanel = new JPanel();
 		videoFeedPanel.setLayout(new BorderLayout());
-		videoFeedPanel.setMinimumSize(new Dimension(300, 250));
+		videoFeedPanel.setMinimumSize(new Dimension(400, 250));
 		videoFeed = new VideoFeed();
 		videoFeedPanel.add(videoFeed, BorderLayout.CENTER);
 		
 		// GPS Targeter:
 		JPanel gpsTargeterPanel = new JPanel();
 		gpsTargeterPanel.setLayout(new BorderLayout());
-		gpsTargeterPanel.setMinimumSize(new Dimension(400, 250));
+		gpsTargeterPanel.setMinimumSize(new Dimension(350, 400));
 		targeter = new Targeter();
 		gpsTargeterPanel.add(targeter, BorderLayout.CENTER);
 		
@@ -452,6 +457,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		rightPanel.setLayout(new BorderLayout());
 		rightPanel.setMinimumSize(new Dimension(400, 700));
 		rightPanel.add(vertSplitPane, BorderLayout.CENTER);
+		
+		
 		
 		// Create a split pane between the left and right panels
 		JSplitPane horizSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
@@ -542,60 +549,28 @@ public class MainWindow extends JPanel implements PacketListener {
 		//data control panel. Top left panel containing curent roll/spd/pitch/alt
 		JPanel dataPanel = new JPanel();
 		dataPanel.setBorder(new TitledBorder(new EtchedBorder(), "Data"));
-		dataPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		//dataPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		dataPanel.setLayout(new GridLayout(0,2));
+
 		
-		Font dataPanelFont = new Font(Font.SANS_SERIF, 0, 16);
+		Font dataPanelFont = new Font(Font.SANS_SERIF, 0, 25);
 		dataPanel.setFont(dataPanelFont);
 		
-		JLabel roll, pitch, speed, alt, head, sec, ms, altAtDrop;
-		roll = new JLabel("Roll:");
-		roll.setFont(dataPanelFont);
-		pitch = new JLabel("Pitch:");
-		pitch.setFont(dataPanelFont);
-		speed = new JLabel("Speed:");
-		speed.setFont(dataPanelFont);
-		alt = new JLabel("Alt:");
-		alt.setFont(dataPanelFont);
-		head = new JLabel("Heading:");
-		head.setFont(dataPanelFont);
-		sec = new JLabel("Time:");
-		sec.setFont(dataPanelFont);
-		ms = new JLabel(".");
-		ms.setFont(dataPanelFont);
-		altAtDrop = new JLabel("Alt at Drop:");
-		altAtDrop.setFont(dataPanelFont);
+		JLabel altTxt, altAtDropTxt;
+		altTxt = new JLabel("Alt (ft):");
+		altTxt.setFont(dataPanelFont);
+		altAtDropTxt = new JLabel("\tAlt at Drop (ft):");
+		altAtDropTxt.setFont(dataPanelFont);
 		
-		dataPanelFont = new Font(Font.SANS_SERIF, Font.BOLD, 16);  //change values to bolded
-
 		//If wanted to clean this up make an array of JLabels...
-		lblRoll = new JLabel("");
-		lblRoll.setFont(dataPanelFont);
-		lblPitch = new JLabel("");
-		lblPitch.setFont(dataPanelFont);
-		lblSpeed = new JLabel("");
-		lblSpeed.setFont(dataPanelFont);
 		lblAlt = new JLabel("");
 		lblAlt.setFont(dataPanelFont);
-		lblHead = new JLabel("");
-		lblHead.setFont(dataPanelFont);
-		lblTS = new JLabel("");
-		lblTS.setFont(dataPanelFont);
 		lblAltAtDrop = new JLabel("");
 		lblAltAtDrop.setFont(dataPanelFont);
 	
-		dataPanel.add(roll);
-		dataPanel.add(lblRoll);
-		dataPanel.add(pitch);
-		dataPanel.add(lblPitch);
-		dataPanel.add(speed);
-		dataPanel.add(lblSpeed);
-		dataPanel.add(alt);
+		dataPanel.add(altTxt);
 		dataPanel.add(lblAlt);
-		dataPanel.add(head);
-		dataPanel.add(lblHead);
-		dataPanel.add(sec);
-		dataPanel.add(lblTS);
-		dataPanel.add(altAtDrop);
+		dataPanel.add(altAtDropTxt);
 		dataPanel.add(lblAltAtDrop);
 		
 		return dataPanel;
@@ -611,10 +586,13 @@ public class MainWindow extends JPanel implements PacketListener {
 	//called from SerialCommunicator?
 	public void invalidPacketReceived(String packet) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
-		System.out.println(time + "s: Invalid packet recieved:" +packet);
+	
+		//TODO - log the invalid packet (check this is correct  with Ick)
+		LOGGER.info("Invalid Packet Received at " + time + " s, Raw String: " + packet);
+		
 	}
 	
-	//called from SerialCommunicator?
+	//called from SerialCommunicator
 	public void packetReceived(String packet, byte[] byteArray) {
 		//System.out.println(packet);
 		analyzePacket(packet, byteArray);
@@ -625,14 +603,19 @@ public class MainWindow extends JPanel implements PacketListener {
 	//with XXXX = four bytes which combined make a float, s = 1 byte making uint8_t, tt = 2 bytes making uint16_t, 
 	//*pXXXXYYYYZZZZAAAABBBBsttee is the newer way -> no longer sending roll or pitch, 27 bytes long
 	
-	
+	final static int DATA_PACKET_L = 27;  //NOTE -> if changes, must also update in SerialCommunicator
+	final static int ALTATDROP_PACKET_L = 8;
+	final static int ACKNOWLEDGE_PACKET_L = 4;  //This is common to a bunch of 'acknowledge' type messages
+
+
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
 	private void analyzePacket (String str, byte[] byteArray) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		
-		int byteArrayInd = 0;
+		int byteArrayInd = 2;  //The start of data is at index 2 (0th = '*',  1st = 'p' or 'a')
 			
-		if(str.substring(0, 1).equals("p")){ //'p' indicates data packet
+		//DATA PACKET
+		if(str.substring(1, 2).equals("p") && str.length() == DATA_PACKET_L){ //'p' indicates data packet
 			
 			double [] dblArr = new double [5];
 			int [] timeArr = new int[2];  //S, MS
@@ -642,7 +625,7 @@ public class MainWindow extends JPanel implements PacketListener {
 				dblArr[x] = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
 				
 				//rounding code
-				if(x != 4 && x != 5)  //round to 2 decimal places
+				if(x != 2 && x != 3)  //round to 2 decimal places if not Latt & Long
 					dblArr[x] = Math.round(100*dblArr[x])/100.0;
 				else  //round to 4 decimal places (latt and long)
 					dblArr[x] = Math.round(10000*dblArr[x])/10000.0;	
@@ -653,111 +636,87 @@ public class MainWindow extends JPanel implements PacketListener {
 			timeArr[1] = extractuInt16(byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
 			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
 			
-			
-			/*Old method
-		if (str.substring(0, 1).equals("p")) {
-			String [] strArr = str.split("%");
-			double [] dblArr = new double [7]; //was 4 before, added LAT/Long/Heading/
-			int [] timeArr = new int[2];  //S, MS
-			try {
-				for (int i = 1; i < 8; i++)  //start at 1 - since the first string is *p 
-				{	dblArr[i-1] = Double.parseDouble(strArr[i]);
-					
-					//ensure no extra trailing 0 decimal places are displayed (prints nicer)
-					if(i != 5 && i != 6)  //round to 2 decimal places
-						dblArr[i-1] = Math.round(100*dblArr[i-1])/100.0;
-					else  //round to 4 decimal places (latt and long)
-						dblArr[i-1] = Math.round(10000*dblArr[i-1])/10000.0;									
-				
-				}
-				
-				for (int j = 8; j < 10; j++)
-					timeArr[j-8] = Integer.parseInt(strArr[j]);
-				
-				
-				
-			} catch (Exception e) {
-				System.out.println(time + "s: Encountered an invalid packet: \"" + str + "\"");
-			}*/
-			
+			//Unit conversion things
 			dblArr[3] = Math.round(10000*dblArr[3]*0.514444)/10000.0;  //CONVERT from knots TO m/s
 			dblArr[5] *= -1;		//acount for the fact it should have 'W' attached (western hemisphere == negative longitude)
 			
-			//print to status area (top left)
-			int ind = 0;
-			//lblRoll.setText(""+dblArr[ind++]);  lblPitch.setText(""+dblArr[ind++]);	
-			lblAlt.setText(""+dblArr[ind++]);	lblSpeed.setText(""+dblArr[ind++]);	
-			//Skip lattitude, longitude
-			lblHead.setText(""+dblArr[ind + 2]);  lblTS.setText(""+(timeArr[0]+timeArr[1]/1000.0));	
+			//print altitude to status area (top left)
+			lblAlt.setText(""+dblArr[0]);	
 			
-			LocalDateTime now = LocalDateTime.now();
 			
 			//Update data in VideoFeed Class 
-			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
+			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], timeArr[0], timeArr[1]);
 						
-			//update targeting stuff
-			targeter.updateGPSData(dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], timeArr[0], timeArr[1]);
+			//Send updated data to targeter
+			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], timeArr[0], timeArr[1]);
 
 			logData(); // Log the new state each time new data is received 
 		}
-		else if (str.substring(0, 1).equals("a")) {  //have requested the altitude at drop be returned
-			String altAsString = str.substring(str.indexOf("a") + 1);  //remove a from front
-			altAsString = altAsString.substring(0, altAsString.indexOf("%"));  //remove % and anything after it
-			try{
-				double altitudeAtDrop = Double.parseDouble(altAsString);			//parse remaining string double
-				LOGGER.info("Altitude at drop = " + altitudeAtDrop);  //print result to console
-			} catch(Exception e){  //Invalid double - still want to see what we got back
-				LOGGER.warning("Error while parsing returned altitude - raw string is:  " + str);
+		//RETURN AFTER REQUESTING ALT AT DROP
+		else if (str.substring(1, 2).equals("a") && str.length() == ALTATDROP_PACKET_L) {  
+			
+			//Extract the float of the altitude
+			double altitudeAtDrop = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
+			LOGGER.info("Altitude at drop = " + altitudeAtDrop);  //print result to console
+
+		}
+		//REMAINING ARE ACKNOWLEGEMENT MESSAGES
+		else if(str.length() == ACKNOWLEDGE_PACKET_L)
+		{	
+			if (str.substring(1, 2).equals("s")) {
+				LOGGER.info(time + "s: Start");
+			}
+			else if (str.substring(1, 2).equals("k")) {
+				LOGGER.info(time + "s: Reset Acknowledge");
+			}
+			else if (str.substring(1, 2).equals("q")) {
+				LOGGER.info(time + "s: Restart Acknowledge");
+			}
+			else if (str.substring(1, 2).equals("x")) {
+				LOGGER.info(time + "s: Camera Reset Acknowledge");
+			}
+			else if (str.substring(1, 2).equals("e")) {
+				LOGGER.info(time + "s: Error");
+			}
+			else if (str.substring(1, 2).equals("y")) {
+				LOGGER.info(time + "s: Drop Acknowledge");
+			}
+			else if (str.substring(1, 2).equals("b")) {
+				LOGGER.info(time + "s: Auto Drop ON confirmation.");
+				targeter.setAutoDropEnabled(true);
+				btnToggleAutoDrop.setText("Disable AutoDrop");
+			}
+			else if (str.substring(1, 2).equals("d")) {
+				LOGGER.info(time + "s: Auto Drop OFF confirmation.");
+				targeter.setAutoDropEnabled(false);
+				btnToggleAutoDrop.setText("Enable AutoDrop");
+			}
+			else if (str.substring(1, 2).equals("o")) {
+				LOGGER.info(time + "s: Open Drop Bay Acknowledge");
+			}
+			else if(str.substring(1, 2).equals("c")) {
+				LOGGER.info(time + "s: Close Drop Bay Acknowledge");
+			}
+			else if (str.substring(1, 2).equals("1")) {
+				LOGGER.info(time + "s: MPU6050 Ready");
+			}
+			else if (str.substring(1, 2).equals("2")) {
+				LOGGER.info(time + "s: MPU6050 Failed");
+			}
+			else if (str.substring(1, 2).equals("3")) {
+				LOGGER.info(time + "s: DMP Ready");
+			}
+			else if (str.substring(1, 2).equals("4")) {
+				LOGGER.info(time + "s: DMP Failed");
+			}
+			else if (str.substring(1, 2).equals("5")) {
+				LOGGER.info(time + "s: MPU6050 Initializing");
 			}
 		}
-		else if (str.substring(0, 1).equals("s")) {
-			LOGGER.info(time + "s: Start");
-		}
-		else if (str.substring(0, 1).equals("k")) {
-			LOGGER.info(time + "s: Reset Acknowledge");
-		}
-		else if (str.substring(0, 1).equals("q")) {
-			LOGGER.info(time + "s: Restart Acknowledge");
-		}
-		else if (str.substring(0, 1).equals("x")) {
-			LOGGER.info(time + "s: Camera Reset Acknowledge");
-		}
-		else if (str.substring(0, 1).equals("e")) {
-			LOGGER.info(time + "s: Error");
-		}
-		else if (str.substring(0, 1).equals("y")) {
-			LOGGER.info(time + "s: Drop Acknowledge");
-		}
-		else if (str.substring(0, 1).equals("b")) {
-			LOGGER.info(time + "s: Auto Drop ON confirmation.");
-			targeter.setAutoDropEnabled(true);
-			btnToggleAutoDrop.setText("Disable AutoDrop");
-		}
-		else if (str.substring(0, 1).equals("d")) {
-			LOGGER.info(time + "s: Auto Drop OFF confirmation.");
-			targeter.setAutoDropEnabled(false);
-			btnToggleAutoDrop.setText("Enable AutoDrop");
-		}
-		else if (str.substring(0, 1).equals("o")) {
-			LOGGER.info(time + "s: Open Drop Bay Acknowledge");
-		}
-		else if(str.substring(0, 1).equals("c")) {
-			LOGGER.info(time + "s: Close Drop Bay Acknowledge");
-		}
-		else if (str.substring(0, 1).equals("1")) {
-			LOGGER.info(time + "s: MPU6050 Ready");
-		}
-		else if (str.substring(0, 1).equals("2")) {
-			LOGGER.info(time + "s: MPU6050 Failed");
-		}
-		else if (str.substring(0, 1).equals("3")) {
-			LOGGER.info(time + "s: DMP Ready");
-		}
-		else if (str.substring(0, 1).equals("4")) {
-			LOGGER.info(time + "s: DMP Failed");
-		}
-		else if (str.substring(0, 1).equals("5")) {
-			LOGGER.info(time + "s: MPU6050 Initializing");
+		//IF NONE OF THE ABOVE, INVALID PACKET
+		else
+		{
+			invalidPacketReceived(str);			
 		}
 	}
 	
