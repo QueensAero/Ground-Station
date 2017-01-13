@@ -53,7 +53,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	private StringBuffer received = new StringBuffer();
 	private byte[] receivedBytes = new byte[200];
 	private int byteInd = 0, packetStartInd = -1, packetEndInd = -1;
-	private int mostRecentEndCharInd = -1;
 	
 	//constructor
 	public SerialCommunicator() {
@@ -107,7 +106,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	received.setLength(0);  //information received is set (or reset) to 0 for new connection
     	byteInd = 0;
     	packetStartInd = packetEndInd = -1;
-    	mostRecentEndCharInd = -1;
     	
     	selectedPortIdentifier = (CommPortIdentifier)portMap.get(selectedPort); //get information of the selected port 
     	CommPort commPort;  //temporary variable see below - is it even necessary?
@@ -133,107 +131,104 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	
     	//in connected, then call FN to initialize the input and output streams. 
 		if (connected) {
-			if (initStreams() == true) {			
+			if (initStreams() == true) {		
+				
+				//IF doing anything with command mode, do it here, before event listener 'catches' return packets
+				int maxNumTries = 2, numTries = 0;
+				while(++numTries <= maxNumTries && !initXBeeMode());  //Try twice before giving up			
+				
+				//After this call, the listener handles all incoming bytes
 				initEventListener();  //add event listeners to input and output streams
 			}
 		}
     }
     
-    //get rid of everything in input serial buffer (mainly used during enterBypassMode procedure
+    //get rid of everything in input serial buffer
     private void flushInputBuffer()
     {
-    	byte[] flush = new byte[256];
        	try {
-			while(input.read(flush) > 0);  //keep calling it flushes so fast data is still arriving
-
+       		while(true)
+       		{
+       			if(input.available() > 0)  //will be while still data
+       				input.read();  //keep calling, flushing one bytes at a time
+       			else       								
+       				break;
+       		}
 		} catch (IOException e) {				}    	
     }
     
     
     
-    /* These next two functions are never used, but are left as a reference.  They can be easily accomplished with XCTU
-    private static String COMMAND_MODE_CHAR = "+", A = "A", T = "T", C = "C", N = "N", CR = "\r", COMMAND_MODE_OK = "OK\r";
-    private static int TIMEOUT_ENTER_COMMAND_MODE = 1500; 
+    // These next two functions are never used, but are left as a reference.  They can be easily accomplished with XCTU
+    private static String COMMAND_MODE_CMD = "+++", SWITCH_TO_AT_CMD = "ATAP0\r", EXIT_COMMAND_MODE_CMD = "ATCN\r", COMMAND_MODE_OK = "OK\r";
+    private static int RESPONSE_TIMEOUT = 2000; 
+
     
-    private boolean enterCommandMode()  {
+    private boolean initXBeeMode()  {
 		
-		// Enter in AT command mode (send '+++'). The process waits 1,5 seconds for the 'OK\n'.
-		byte[] readData = new byte[256];
-		byte[] testData = new byte[256];
+    	//Enter command mode
+    	if(!sendCmdAndWaitForOK(COMMAND_MODE_CMD, RESPONSE_TIMEOUT))
+    	{
+			LOGGER.info("Failed when sending AT Command: " + COMMAND_MODE_CMD);
+			return false;
+    	}
+    	
+    	//Switch to transparent mode
+    	if(!sendCmdAndWaitForOK(SWITCH_TO_AT_CMD, RESPONSE_TIMEOUT))
+    	{
+			LOGGER.info("Failed when sending AT Command: " + SWITCH_TO_AT_CMD);
+			return false;
+    	}
+    	
+    	//Exit Command Mode
+    	if(!sendCmdAndWaitForOK(EXIT_COMMAND_MODE_CMD, RESPONSE_TIMEOUT))
+    	{
+			LOGGER.info("Failed when sending AT Command: " + EXIT_COMMAND_MODE_CMD);
+			return false;
+    	}
+    	
+    	return true;  //If succesfull in all above steps, XBee init successfully
+    	
 		
-		try {
-			// Send the command mode sequence.
-			output.write(COMMAND_MODE_CHAR.getBytes());
-			output.write(COMMAND_MODE_CHAR.getBytes());
-			output.write(COMMAND_MODE_CHAR.getBytes());			
-			
-			output.flush();
-			
-			// Wait some time to let the module generate a response.
-			Thread.sleep(TIMEOUT_ENTER_COMMAND_MODE);
-			
-			
-			
-			// Read data from the device (it should answer with 'OK\r').
-			int readBytes = input.read(readData);
-			if (readBytes < COMMAND_MODE_OK.length())
-			{	System.out.println("Failed to enter command mode, # bytes too low (= " + readBytes + ")");
-				String readString = new String(readData, 0, readBytes);
-				System.out.println(readString);
-				return false;
-			}
-			
-			// Check if the read data is 'OK\r'.
-			String readString = new String(readData, 0, readBytes);
-			if (!readString.contains(COMMAND_MODE_OK))
-			{	System.out.println(readString);
-				return false;
-			}
-			// Read data was 'OK\r'.
-			return true;
-		} catch (IOException e) {
-		} catch (InterruptedException e) {
-		}
-		return false;
 	}
     
-    private boolean exitCommandMode(){
-    	
-    	byte[] readData = new byte[256];
+    private boolean sendCmdAndWaitForOK(String cmd, int timeout)
+    {
+		byte[] responseBytes = new byte[256];
+		
 		try {
+			//Remove anything sitting waiting to be processed
+			flushInputBuffer();
+			
 			// Send the command mode sequence.
-			output.write(A.getBytes());
-			output.write(T.getBytes());
-			output.write(C.getBytes());
-			output.write(N.getBytes());
-			output.write(CR.getBytes());
-
-
+			output.write(COMMAND_MODE_CMD.getBytes());
 			
-			// Wait some time to let the module generate a response.
-			Thread.sleep(TIMEOUT_ENTER_COMMAND_MODE);
+			long st = System.currentTimeMillis();
+			int index = 0;
+			String response;
 			
-			// Read data from the device (it should answer with 'OK\r').
-			int readBytes = input.read(readData);
-			if (readBytes < COMMAND_MODE_OK.length())
-				return false;
-			
-			// Check if the read data is 'OK\r'.
-			String readString = new String(readData, 0, readBytes);
-			if (!readString.contains(COMMAND_MODE_OK))
-				return false;
-			
-			return true;
-
-			
-		} catch (IOException e) {
-		} catch (InterruptedException e) {
+			while(System.currentTimeMillis() - st  < RESPONSE_TIMEOUT)
+			{
+				if(input.available() > 0)
+				{
+					responseBytes[index++] = (byte) input.read();
+					response = responseBytes.toString();  
+					if(response.contains(COMMAND_MODE_OK))
+						return true;	
+					
+					if(index >= 255)
+						index = 0;
+				}				
+			}		
+		} catch (Exception e)
+		{
+			LOGGER.info("Exception when sending AT Command: " + cmd);
 		}
 		
+		//If don't get the right sequence above, we failed
 		return false;
     	
     }
-    */
 
     
     //disconnect from COM port
@@ -284,6 +279,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
         try {
             serialPort.addEventListener(this);  //makes this class a SerialPortEvent listener (will activate serialEvent FN below I think)
             serialPort.notifyOnDataAvailable(true);  //create event when input data available
+            
         }
         catch (TooManyListenersException e) {
             LOGGER.warning("Too many listeners: " + e.toString());
@@ -294,14 +290,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     public boolean getConnected () {  return connected;  }
 
     
-    /*handles the DATA_AVAILABLE event -> which is generated when 1 byte received, and not regenerated
-     *  if new data is receieved BEFORE processing this event.  This is poorly setup - it should read until not available
-     *  not just read a single byte: otherwise, if a two bytes are received before the 1st is processed, it will forever be
-     *  behind 'real' time and the buffer will increase in length
-     *  
-     *  I'm not sure how true ^ is. I am also unsure if having it wait until the end of a packet can cause certain aspects of the GUI
-     *  to hang as it's waiting for a complete message
-     */    
+    //handles the DATA_AVAILABLE event -> which is generated when 1 byte received, and not regenerated
     public void serialEvent(SerialPortEvent evt) {
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
             try {
@@ -309,7 +298,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	        	int newByte; 
       	
 	        	//THIS LOOP GETS A COMPLETE PACKET
-	        	//note: this blocks until data is available, so don't have to worry about going through while with repeated data
+	        	//note: input.read blocks until data is available, so don't have to worry about going through while with repeated data
 	        	while((newByte = input.read()) > -1)
 	        	{	
 	        		System.out.print(newByte);
@@ -317,8 +306,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 					receivedBytes[byteInd++] = (byte)newByte;  //shouldn't lose information, since newByte is int between 0-255
 
 					//If the received buffer is too long (somehow missed end, corrupted data, etc). Wipe clean and get a fresh start
-					//TODO - analyze threshold. At first connect, might be many characters into packet, and still want to get that first one
-						//So have threshold at double DATA_PACKET_L??
 					//TODO - Maybe have the start be '**' instead of '*'					
 					if(byteInd > 2*DATA_PACKET_L) 
 					{
@@ -351,26 +338,8 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 						 * This removes the possibility that 1/256 packets it ends one too short
 						 */
 
-					}				
-					
-					/******* OLD METHOD *************  -> REMOVE AFTER TESTING
-					//IF we receive the end character. For it to be the end of the packet, the end character must come twice (Checked inside)
-					else if(newByte == END_CHAR)  
-					{	
-						//IF the current byte index is equal to one greater than the last received END_CHAR's index (and it's not index 0), 
-						//then we have a correct 'end packet sequence' so leave the while loop 
-						if(byteInd == (mostRecentEndCharInd+1) && byteInd != 0)
-						{	
-							packetEndInd = byteInd;  //this points indexOf("&")+1
-							break; //analyze the packet        
-						}
-						//We set the index of most recent END_CHAR to the current index
-						else
-							mostRecentEndCharInd = byteInd;  //first time through it will set to true. If two adjacent 'e' received, then next time will get into first if. Otherwise will reset this
-						
-						
-					}	*/
-	        	}     	
+					}							
+		       	}     	
 	            	
 	        	String packet = received.toString();
 	        	
@@ -395,7 +364,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 				
 				//Regardless of the 'case', we reset the variables and delete the received 
 				byteInd = 0;
-				packetStartInd = packetEndInd = mostRecentEndCharInd = -1;
+				packetStartInd = packetEndInd = -1;
 				if(received.length() > 0)  //not sure if this is necessary, but add to be safe
 					received.delete(0, received.length());
 	        }
