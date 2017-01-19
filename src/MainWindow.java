@@ -8,6 +8,7 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
 import javax.swing.JPanel;
+import javax.swing.JRadioButtonMenuItem;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -30,6 +31,9 @@ import javax.swing.BoxLayout;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
@@ -51,6 +55,7 @@ import javax.swing.text.DefaultCaret;
 
 public class MainWindow extends JPanel implements PacketListener {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
+	private MainWindow me;
 	private StreamHandler consoleLogger;
 	public VideoFeed videoFeed;
 	public Targeter targeter;
@@ -59,19 +64,22 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JButton btnEnable, btnClearData, btnRequestAltAtDrop;
 	private JButton btnToggleAutoDrop, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
-	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
+
 	public PrintStream console; //to display all console messages
 	private JTextArea consoleTextArea;
 	private JLabel lblAlt, lblAltAtDrop; //labels to display the values
-	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
 	JDialog calibrator;
 	long connectTime;
 	boolean btnsEnabled = false;
 	private JFrame parentFrame;
-	private GPSTargetDialog gpsTargetDialog;
 	//thread variables
-	Timer threadTimer; 
+	Timer threadTimer;
+	
+	// Menu Bar Variables
+	private JMenu menu, gpsSubmenu, commSubmenu;
+    private JMenuItem menuItem;
+    private JRadioButtonMenuItem commRadioMenu;
 	
 	//logging variables
 	private Path logPath;
@@ -86,11 +94,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		initializeComponents();
 
 		initializeButtons();
-		
+		me = this;
 		parentFrame = frame;
-		
-		gpsTargetDialog = new GPSTargetDialog(frame, "GPS Target", this);
-		gpsTargetDialog.pack();
 	}
 	
 	private void logData() {
@@ -284,12 +289,6 @@ public class MainWindow extends JPanel implements PacketListener {
 					LOGGER.info("Altitude at drop requested.");
 				}
 			});
-			
-			btnUpdateTarget.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					gpsTargetDialog.setVisible(true);
-				}
-			});
 	}/* END INITIALIZE BUTTONS */
 	
 	//called when drop command sent. Updates flag, prints out time and altitude of drop
@@ -303,6 +302,49 @@ public class MainWindow extends JPanel implements PacketListener {
 		targeter.setDropStatus(true);
 	}
 	
+	public JMenuBar createMenuBar() {
+		JMenuBar menuBar;
+
+        //Create the menu bar.
+        menuBar = new JMenuBar();
+ 
+        //Build the first menu.
+        menu = new JMenu("Setup");
+        menuBar.add(menu);
+ 
+        // GPS Submenu
+        gpsSubmenu = new JMenu("GPS Target");
+        menuItem = new JMenuItem("Update GPS Target");
+        menuItem.addActionListener(new ActionListener() {
+        	
+        public void actionPerformed(ActionEvent e) {
+        		GPSTargetDialog gpsTargetDlg = new GPSTargetDialog(parentFrame, "GPS Target", me, targeter.getTargetPos().getLatitude(), targeter.getTargetPos().getLongitude());
+        		gpsTargetDlg.pack();
+        		gpsTargetDlg.setVisible(true);
+        	}
+        });
+        gpsSubmenu.add(menuItem);
+        //menuItem = new JMenuItem("Current GPS Target");
+        //gpsSubmenu.add(menuItem);
+ 
+        // Comm Submenu
+        commSubmenu = new JMenu("Comm. Port");
+        /*commSubmenu.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				// When the comm submenu is being accesssed, update the contents
+				System.out.println("here");
+			}
+		});*/
+
+        //menuItem = new JMenuItem("Current Comm. Port");
+        //commSubmenu.add(menuItem);
+        
+        menu.add(gpsSubmenu);
+        //menu.add(commSubmenu);
+
+        menuBar.add(menu);
+		return menuBar;
+	}
 	
 	//mess of a function intializing the layout of the GUI
 	private void initializeComponents() {
@@ -361,40 +403,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		leftPanel.add(servoPanel, c);
-		
-		// gpsTargetPanel
-		JPanel gpsTargetPanel = new JPanel();
-		gpsTargetPanel.setBorder(new TitledBorder(new EtchedBorder(), "GPS Target Location"));
-		gpsTargetPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		gpsTargetPanel.setMinimumSize(new Dimension(minWidth, 60));
-		gpsTargetPanel.setPreferredSize(new Dimension(preferredWidth, 60));
-		Font gpsTargetPanelFont = new Font(Font.SANS_SERIF, 0, 16);
-		gpsTargetPanel.setFont(gpsTargetPanelFont);
-		JLabel latLabel, lonLabel;
-		latLabel = new JLabel("Latitude:");
-		latLabel.setFont(gpsTargetPanelFont);
-		lonLabel = new JLabel("Longitude:");
-		lonLabel.setFont(gpsTargetPanelFont);
-		gpsTargetPanelFont = new Font(Font.SANS_SERIF, Font.BOLD, 16);  //change values to bolded
-		lblLat = new JLabel("");
-		lblLat.setFont(gpsTargetPanelFont);
-		lblLon = new JLabel("");
-		lblLon.setFont(gpsTargetPanelFont);
-		btnUpdateTarget = new JButton("Update Target");
-		gpsTargetPanel.add(btnUpdateTarget);
-		gpsTargetPanel.add(latLabel);
-		gpsTargetPanel.add(lblLat);
-		gpsTargetPanel.add(lonLabel);
-		gpsTargetPanel.add(lblLon);
-		gpsTargetPanel.add(btnUpdateTarget);
-		c.gridx = 0;
-		c.gridy = 3;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 0;
-		c.fill = GridBagConstraints.HORIZONTAL;
-		leftPanel.add(gpsTargetPanel, c);
 		
 		// consolePanel
 		//Panel containing the console (System.out is mapped to here)
@@ -465,9 +473,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		horizSplitPane.setOneTouchExpandable(true);
 
 		this.add(horizSplitPane, BorderLayout.CENTER);
-		
-		lblLat.setText(Double.toString(targeter.getTargetPos().getLatitude()));
-		lblLon.setText(Double.toString(targeter.getTargetPos().getLongitude()));
 	}
 	
 	private JPanel initializeServoButtonPanel() {
@@ -578,8 +583,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	
 	// Called by the gps target dialog:
 	public void updateGPSTarget(Double lat, Double lon) {
-		lblLon.setText(Double.toString(lon));
-		lblLat.setText(Double.toString(lat));
+		// Update labels here if we decide to display the target latitude / longitude
 		targeter.setTargetPos(lat,  lon);
 	}
 	

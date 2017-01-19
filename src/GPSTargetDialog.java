@@ -27,13 +27,15 @@ class GPSTargetDialog extends JDialog implements ActionListener, PropertyChangeL
     }
 
     /** Creates the reusable dialog. */
-    public GPSTargetDialog(Frame aFrame, String aWord, MainWindow parent) {
+    public GPSTargetDialog(Frame aFrame, String aWord, MainWindow parent, Double curLat, Double curLon) {
         super(aFrame, true);
         this.parent = parent;
         setTitle("GPS Target Coordinates");
 
         latTextField = new JTextField(10);
         lonTextField = new JTextField(10);
+        latTextField.setText(curLat.toString());
+        lonTextField.setText(curLon.toString());
 
         //Create an array of the text and components to be displayed.
         String msgString1 = "Enter target GPS coords:";
