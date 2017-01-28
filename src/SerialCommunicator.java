@@ -76,6 +76,13 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 		return portStringList;
 	}
 	
+	public String getCurrentPortName() {
+		if(connected)
+			return serialPort.getName();
+		else
+			return "";
+	}
+	
 	//update the available COM serial ports list
 	private void updatePortList() {
 		

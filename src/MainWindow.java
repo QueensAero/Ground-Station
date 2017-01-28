@@ -8,6 +8,7 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 
 import javax.swing.JPanel;
+import javax.swing.JRadioButtonMenuItem;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -30,6 +31,9 @@ import javax.swing.BoxLayout;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
@@ -51,28 +55,32 @@ import javax.swing.text.DefaultCaret;
 
 public class MainWindow extends JPanel implements PacketListener {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
+	private MainWindow me;
 	private StreamHandler consoleLogger;
 	public VideoFeed videoFeed;
 	public Targeter targeter;
 	private JComboBox commPortSelector;
-	private JButton btnRefresh, btnConnect; //connection buttons
-	private JButton btnEnable, btnClearData, btnRequestAltAtDrop, btnRequestBattV;
+	//private JButton btnRefresh, btnConnect; //connection buttons
+	//private JButton btnEnable, btnClearData, btnRequestAltAtDrop, btnRequestBattV;
+	//private JButton btnAutoDropOn, btnAutoDropOff, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
+	private JButton btnEnable, btnRequestAltAtDrop, btnRequestBattV;
 	private JButton btnAutoDropOn, btnAutoDropOff, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
-	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
+
 	public PrintStream console; //to display all console messages
 	private JTextArea consoleTextArea;
 	private JLabel lblAlt, lblAltAtDrop; //labels to display the values
-	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
 	private TextAreaOutputStream outputStream;
 	JDialog calibrator;
 	long connectTime;
 	boolean btnsEnabled = false;
 	private JFrame parentFrame;
-	private GPSTargetDialog gpsTargetDialog;
 	//thread variables
-	Timer threadTimer; 
+	Timer threadTimer;
+	
+	// Menu Bar Variables
+	private JMenu menu, gpsSubmenu, commSubmenu;
 	
 	//logging variables
 	SimpleDateFormat sdf;
@@ -82,15 +90,10 @@ public class MainWindow extends JPanel implements PacketListener {
 	//constructor
 	public MainWindow (SerialCommunicator sc, JFrame frame) {
 		serialComm = sc;
-		
 		initializeComponents();
-
 		initializeButtons();
-		
+		me = this;
 		parentFrame = frame;
-		
-		gpsTargetDialog = new GPSTargetDialog(frame, "GPS Target", this);
-		gpsTargetDialog.pack();
 		startTime = System.currentTimeMillis();
 	}
 	
@@ -115,7 +118,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	}
 		
 	//set enabled setting for all plane control buttons at once
-	private void setControlButtons (boolean val) {
+	public void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
 		btnAutoDropOn.setEnabled(val);
 		btnAutoDropOff.setEnabled(val);
@@ -127,19 +130,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnsEnabled = val;
 	}
 	
-	//function called to update list of available COM ports
-	private void updateCommPortSelector() {
-		commPortSelector.removeAllItems();
-		ArrayList<String> temp = serialComm.getPortList();
-		String portList = "Available serial ports:";
-
-		for (int i = 0; i < temp.size(); i++) {
-			commPortSelector.addItem(temp.get(i));
-			portList += temp.get(i) + ",";
-		}
-		LOGGER.info(portList);
-	}
-	
 	//function containing/initializing all the GUI button action listeners
 	private void initializeButtons() {
 		
@@ -149,43 +139,13 @@ public class MainWindow extends JPanel implements PacketListener {
 		/* ACTION LISTENERS */	
 				
 			//when 'Clear' pressed.  Clears the console window 
-			btnClearData.addActionListener(new ActionListener() {
+			/*
+			 * TODO
+			 * btnClearData.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					consoleTextArea.setText("");
 				}
-			});
-			
-			//when 'Refresh' pressed.  Refreshes the list of available COM ports
-			btnRefresh.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					updateCommPortSelector();
-				}
-			});
-			
-			/*when 'Connect' pressed. if(connected) Tries to connect to the selected COM port.  This also initializes the time, some flags, 
-			enables the plane control buttons, changes label to disconnect.  else - it disconnects from current COM port	 */
-			btnConnect.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					if (!serialComm.getConnected()) {
-						String commPort = commPortSelector.getSelectedItem().toString();
-						serialComm.connect(commPort);
-						if (serialComm.getConnected()) {
-							connectTime = System.currentTimeMillis();
-							serialComm.addListener(MainWindow.this);
-							btnConnect.setText("Disconnect");
-							setControlButtons(true);
-						}
-					}
-					else {
-						serialComm.disconnect();
-						if (!serialComm.getConnected()) {
-							serialComm.removeListener(MainWindow.this);
-							btnConnect.setText("Connect");
-							setControlButtons(false);
-						}
-					}
-				}
-			});
+			});*/
 			
 			//when 'Enable/Disable Resets' Pressed
 			btnEnable.addActionListener(new ActionListener() {
@@ -310,11 +270,6 @@ public class MainWindow extends JPanel implements PacketListener {
 			});
 			
 			
-			btnUpdateTarget.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					gpsTargetDialog.setVisible(true);
-				}
-			});
 	}/* END INITIALIZE BUTTONS */
 	
 	//called when drop command sent. Updates flag, prints out time and altitude of drop
@@ -328,11 +283,51 @@ public class MainWindow extends JPanel implements PacketListener {
 		targeter.setDropStatus(true);
 	}
 	
+	public JMenuBar createMenuBar() {
+		JMenuBar menuBar;
+
+        //Create the menu bar.
+        menuBar = new JMenuBar();
+ 
+        //Build the first menu.
+        menu = new JMenu("Setup");
+        menuBar.add(menu);
+ 
+        // GPS Submenu
+        gpsSubmenu = new JMenu("GPS Target");
+        JMenuItem menuItem = new JMenuItem("Update GPS Target");
+        menuItem.addActionListener(new ActionListener() {	
+        public void actionPerformed(ActionEvent e) {
+        		GPSTargetDialog gpsTargetDlg = new GPSTargetDialog(parentFrame, "GPS Target", me, targeter.getTargetLattDDM(), targeter.getTargetLongDDM());
+        		gpsTargetDlg.pack();
+        		gpsTargetDlg.setVisible(true);
+        	}
+        });
+        gpsSubmenu.add(menuItem);
+ 
+        // Comm Submenu
+        commSubmenu = new JMenu("Comm. Port");
+        menuItem = new JMenuItem("Select Comm. Port");
+        menuItem.addActionListener(new ActionListener() {	
+            public void actionPerformed(ActionEvent e) {
+            	CommPortDialog commPortDlg = new CommPortDialog(me, serialComm);
+            	commPortDlg.pack();
+            	commPortDlg.setVisible(true);
+            }
+        });
+        commSubmenu.add(menuItem);
+       
+        menu.add(gpsSubmenu);
+        menu.add(commSubmenu);
+
+        menuBar.add(menu);
+        
+		return menuBar;
+	}
 	
 	//mess of a function intializing the layout of the GUI
 	private void initializeComponents() {
 		this.setLayout(new BorderLayout());
-		
 		/***** Left Side: *****/
 		JPanel leftPanel = new JPanel();
 		leftPanel.setLayout(new GridBagLayout());
@@ -360,20 +355,6 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		leftPanel.add(dataPanel, c);
 		
-		// commPortControlPanel:
-		//Panel containing connect/disconnect/refresh buttons for connecting to Comm Port
-		JPanel commPortControlPanel = initializeCommPortControlPanel();
-		commPortControlPanel.setMinimumSize(new Dimension(minWidth, 80));
-		commPortControlPanel.setPreferredSize(new Dimension(650, 80));
-		c.gridx = 0;
-		c.gridy = 1;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 0;
-		c.fill = GridBagConstraints.HORIZONTAL;
-		leftPanel.add(commPortControlPanel, c);
-		
 		// servoButtonPanel
 		JPanel servoPanel = initializeServoButtonPanel();
 		servoPanel.setMinimumSize(new Dimension(minWidth, 100));
@@ -386,41 +367,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		leftPanel.add(servoPanel, c);
-		
-		// gpsTargetPanel
-		JPanel gpsTargetPanel = new JPanel();
-		gpsTargetPanel.setBorder(new TitledBorder(new EtchedBorder(), "GPS Target Location"));
-		gpsTargetPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-		gpsTargetPanel.setMinimumSize(new Dimension(minWidth, 60));
-		gpsTargetPanel.setPreferredSize(new Dimension(preferredWidth, 60));
-		Font gpsTargetPanelFont = new Font(Font.SANS_SERIF, 0, 16);
-		gpsTargetPanel.setFont(gpsTargetPanelFont);
-		JLabel latLabel, lonLabel;
-		latLabel = new JLabel("Latitude:");
-		latLabel.setFont(gpsTargetPanelFont);
-		lonLabel = new JLabel("Longitude:");
-		lonLabel.setFont(gpsTargetPanelFont);
-		gpsTargetPanelFont = new Font(Font.SANS_SERIF, Font.BOLD, 16);  //change values to bolded
-		lblLat = new JLabel("");
-		lblLat.setFont(gpsTargetPanelFont);
-		lblLon = new JLabel("");
-		lblLon.setFont(gpsTargetPanelFont);
-		btnUpdateTarget = new JButton("Update Target");
-		gpsTargetPanel.add(btnUpdateTarget);
-		gpsTargetPanel.add(latLabel);
-		gpsTargetPanel.add(lblLat);
-		gpsTargetPanel.add(lonLabel);
-		gpsTargetPanel.add(lblLon);
-		gpsTargetPanel.add(btnUpdateTarget);
-		c.gridx = 0;
-		c.gridy = 3;
-		c.gridwidth = 1;
-		c.gridheight = 1;
-		c.weightx = 1;
-		c.weighty = 0;
-		c.fill = GridBagConstraints.HORIZONTAL;
-		leftPanel.add(gpsTargetPanel, c);
-		
+
 		// consolePanel
 		//Panel containing the console (System.out is mapped to here)
 		JPanel consolePanel = new JPanel();
@@ -446,8 +393,10 @@ public class MainWindow extends JPanel implements PacketListener {
 		};
 		LOGGER.addHandler(consoleLogger);
 		consoleLogger.setLevel(Level.INFO); // All logging records with level of INFO or higher will be displayed in the 'console'
+		System.out.println("From this point onward, stdout and stderr will be redirected and only displayed in the GUI and in the log." );
 		System.setOut(console); // stdout and stderr will also be logged to the console
 		System.setErr(console);
+
 		consolePanel.add(consoleScroller);
 		c.gridx = 0;
 		c.gridy = 5;
@@ -457,8 +406,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		c.weighty = 1;
 		c.fill = GridBagConstraints.BOTH;
 		leftPanel.add(consolePanel, c);
-		
-		
+			
 		/***** Right Side: *****/
 		// Video Feed:
 		JPanel videoFeedPanel = new JPanel();
@@ -484,16 +432,12 @@ public class MainWindow extends JPanel implements PacketListener {
 		rightPanel.setMinimumSize(new Dimension(400, 700));
 		rightPanel.add(vertSplitPane, BorderLayout.CENTER);
 		
-		
-		
 		// Create a split pane between the left and right panels
 		JSplitPane horizSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
 		horizSplitPane.setOneTouchExpandable(true);
 
 		this.add(horizSplitPane, BorderLayout.CENTER);
-		
-		lblLat.setText(Double.toString(targeter.getTargetLattDDM()));
-		lblLon.setText(Double.toString(targeter.getTargetLongDDM()));
+
 	}
 	
 	private JPanel initializeServoButtonPanel() {
@@ -538,45 +482,10 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnRestartStream = new JButton("Restart Video");
 		servoButtonPanel.add(btnRestartStream);
 		
-		
 		return servoButtonPanel;
 	}
 	
-	private JPanel initializeCommPortControlPanel() {
-		JPanel commPortControlPanel = new JPanel();
-		commPortControlPanel.setLayout(new GridBagLayout());
-		commPortControlPanel.setBorder(new TitledBorder(new EtchedBorder(), "Comm. Port"));
-		GridBagConstraints c2 = new GridBagConstraints();
-		c2.gridx = 0;
-		c2.gridy = 0;
-		c2.gridwidth = 3;
-		c2.gridheight = 1;
-		c2.weightx = 0;
-		c2.weighty = 0;
-		c2.anchor = GridBagConstraints.CENTER;
-		commPortSelector = new JComboBox();
-		commPortControlPanel.add(commPortSelector, c2);
-		updateCommPortSelector();
-		c2.gridx = 1;
-		c2.gridy = 1;
-		c2.gridwidth = 1;
-		c2.gridheight = 1;
-		c2.anchor = GridBagConstraints.CENTER;
-		btnRefresh = new JButton("Refresh");
-		commPortControlPanel.add(btnRefresh, c2);
-		c2.gridx = 2;
-		c2.gridy = 1;
-		btnConnect = new JButton("Connect");
-		commPortControlPanel.add(btnConnect, c2);
-		c2.gridx = 3;
-		c2.gridy = 1;
-		btnClearData = new JButton("Clear");
-		commPortControlPanel.add(btnClearData, c2);
-		c2.gridx = 4;
-		c2.gridy = 1;
-
-		return commPortControlPanel;
-	}
+	
 	private JPanel initializeDataPanel() {
 		//data control panel. Top left panel containing curent roll/spd/pitch/alt
 		JPanel dataPanel = new JPanel();
@@ -610,9 +519,34 @@ public class MainWindow extends JPanel implements PacketListener {
 	
 	// Called by the gps target dialog:
 	public void updateGPSTarget(Double lat, Double lon) {
-		lblLon.setText(Double.toString(lon));
-		lblLat.setText(Double.toString(lat));
+		// Update labels here if we decide to display the target latitude / longitude
 		targeter.setTargetPos(lat,  lon);
+	}
+	
+	// Handles both connect and disconnect based on whether or not we are currently connected
+	public void updateSerialConnection(String commPort) {
+		if (!serialComm.getConnected()) {
+			//String commPort = commPortSelector.getSelectedItem().toString();
+			serialComm.connect(commPort);
+			if (serialComm.getConnected()) {
+				connectTime = System.currentTimeMillis();
+				serialComm.addListener(MainWindow.this);
+				//btnConnect.setText("Disconnect");
+				setControlButtons(true);
+			} else {
+				LOGGER.warning("Failed to connect to: " + commPort);
+			}
+			
+		} else { // Already connected to a port
+			serialComm.disconnect();
+			if (!serialComm.getConnected()) {
+				serialComm.removeListener(MainWindow.this);
+				//btnConnect.setText("Connect");
+				setControlButtons(false);
+			} else {
+				LOGGER.warning("Could not disconnect from serial connection");
+			}
+		}
 	}
 	
 	//called from SerialCommunicator?

@@ -66,15 +66,13 @@ public class AeroGUI {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BorderLayout());
 		
-		
 		//declare Serial Communicator class
 		SerialCommunicator sc = new SerialCommunicator();
 		
 		//declare mainwindow class, passing the SC instance to it
 		main = new MainWindow(sc, frame);
-		
 		frame.getContentPane().add(main, BorderLayout.CENTER);
-		
+		frame.setJMenuBar(main.createMenuBar());
 		//this overrides the closing event, in an attempt to properly terminate the application and end VideoFeed thread
 		frame.addWindowListener(new java.awt.event.WindowAdapter() {
 		    @Override
