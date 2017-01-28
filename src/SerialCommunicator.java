@@ -28,7 +28,6 @@ interface PacketListener {
 public class SerialCommunicator implements SerialPortEventListener, PacketListener {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
-	String packet;
 	ArrayList<PacketListener> listeners = new ArrayList<PacketListener>();
 	
 	private HashMap<String, CommPortIdentifier> portMap = new HashMap<String, CommPortIdentifier>();    	
@@ -41,8 +40,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     private OutputStream output;
     
 	final static int timeout = 2000;
-	final static int NEW_LINE_ASCII = 10;
-	final static int BAUD_RATE = 115200;  //57600;  //9600
+	final static int BAUD_RATE = 115200;  
 	final static int START_CHAR = 42;
 	final static int END_CHAR = 101;
 	final static int DATA_PACKET_L = 27;  //NOTE -> if changes, must also update in MainWindow
@@ -52,6 +50,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	
 	private StringBuffer received = new StringBuffer();
 	private byte[] receivedBytes = new byte[200];
+	private byte[] receivedPacket = new byte[200];
 	private int byteInd = 0, packetStartInd = -1, packetEndInd = -1;
 	
 	//constructor
@@ -146,10 +145,11 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //get rid of everything in input serial buffer
     private void flushInputBuffer()
     {
+    	int numRemoved = 0;  //in case data comes too fast, have a limit of how much to flush
        	try {
        		while(true)
        		{
-       			if(input.available() > 0)  //will be while still data
+       			if(input.available() > 0 && numRemoved++ < 200)  //will be while still data
        				input.read();  //keep calling, flushing one bytes at a time
        			else       								
        				break;
@@ -159,74 +159,106 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     
     
     
-    // These next two functions are never used, but are left as a reference.  They can be easily accomplished with XCTU
     private static String COMMAND_MODE_CMD = "+++", SWITCH_TO_AT_CMD = "ATAP0\r", EXIT_COMMAND_MODE_CMD = "ATCN\r", COMMAND_MODE_OK = "OK\r";
-    private static int RESPONSE_TIMEOUT = 2000; 
+    private static int INTO_CMD_MODE_TIMEOUT = 3000, RESPONSE_TIMEOUT = 750; 
 
     
     private boolean initXBeeMode()  {
-		
+    	
+    	/* This function is critical. When the XBee restarts, it defaults to API mode. In API mode, every received packet will have things appended to it.
+    	 * So it will still receive informatinon. HOWEVER: the packets sent to the XBee are in API mode, and thus will be ignored by the XBee on the plane. THerefore we won't 
+    	 * be able to send any commands, such as 'drop', 'enable autodrop' etc.
+    	 * 
+    	 */
+    	
+    	int resp = 0;
+			
+    	
+    	
     	//Enter command mode
-    	if(!sendCmdAndWaitForOK(COMMAND_MODE_CMD, RESPONSE_TIMEOUT))
+    	if((resp = sendCmdAndWaitForOK(COMMAND_MODE_CMD, INTO_CMD_MODE_TIMEOUT)) == CMD_FAILED)
     	{
-			LOGGER.info("Failed when sending AT Command: " + COMMAND_MODE_CMD);
+			LOGGER.warning("Failed when sending AT Command: " + COMMAND_MODE_CMD + "  (Enter command mode)");
 			return false;
     	}
+    	else if(resp == CMD_ALREADY_IN_TRANSPARENT)  //we are already in transparent mode, no need to try the rest
+    		return true;    		
+    	
     	
     	//Switch to transparent mode
-    	if(!sendCmdAndWaitForOK(SWITCH_TO_AT_CMD, RESPONSE_TIMEOUT))
+    	if((resp = sendCmdAndWaitForOK(SWITCH_TO_AT_CMD, RESPONSE_TIMEOUT)) == CMD_FAILED)
     	{
-			LOGGER.info("Failed when sending AT Command: " + SWITCH_TO_AT_CMD);
+			LOGGER.warning("Failed when sending AT Command: " + SWITCH_TO_AT_CMD + "  (Switch to transparent)");
 			return false;
     	}
+    	else if(resp == CMD_ALREADY_IN_TRANSPARENT)  //we are already in transparent mode, no need to try the rest
+    		return true; 
     	
     	//Exit Command Mode
-    	if(!sendCmdAndWaitForOK(EXIT_COMMAND_MODE_CMD, RESPONSE_TIMEOUT))
+    	if((resp = sendCmdAndWaitForOK(EXIT_COMMAND_MODE_CMD, RESPONSE_TIMEOUT)) == CMD_FAILED)
     	{
-			LOGGER.info("Failed when sending AT Command: " + EXIT_COMMAND_MODE_CMD);
+			LOGGER.warning("Failed when sending AT Command: " + EXIT_COMMAND_MODE_CMD + "   (Exit command mode)");
 			return false;
     	}
+    	//No need for else if 
     	
-    	return true;  //If succesfull in all above steps, XBee init successfully
+    	LOGGER.info("Successfully initialized ground station XBee");
+    	
+    	return true;  //If succesfull in all above steps, XBee init successfully  
     	
 		
 	}
     
-    private boolean sendCmdAndWaitForOK(String cmd, int timeout)
+    //Returns - 0 = failed (no/incorrect resp), 1 = success, 2 = getting lots of data, must already be in transparent mode
+    final static int CMD_FAILED = 0,  //NOTE -> if changes, must also update in SerialCommunicator
+    				 CMD_SUCCESS = 1,
+    				 CMD_ALREADY_IN_TRANSPARENT = 2;
+    private int sendCmdAndWaitForOK(String cmd, int timeout)
     {
-		byte[] responseBytes = new byte[256];
 		
 		try {
 			//Remove anything sitting waiting to be processed
 			flushInputBuffer();
 			
 			// Send the command mode sequence.
-			output.write(COMMAND_MODE_CMD.getBytes());
+			output.write(cmd.getBytes());
 			
 			long st = System.currentTimeMillis();
-			int index = 0;
-			String response;
+			StringBuffer response = new StringBuffer();
+			String responseStr;
+			int newByte;
 			
-			while(System.currentTimeMillis() - st  < RESPONSE_TIMEOUT)
+			while(System.currentTimeMillis() - st  < timeout)
 			{
 				if(input.available() > 0)
 				{
-					responseBytes[index++] = (byte) input.read();
-					response = responseBytes.toString();  
-					if(response.contains(COMMAND_MODE_OK))
-						return true;	
+					newByte = input.read();
+					response.append(new String(new byte[] {(byte)newByte}));
+					responseStr = response.toString();									
+			
+					if(responseStr.contains(COMMAND_MODE_OK))
+					{
+						//LOGGER.info("Successful Response: " + response);
+						return CMD_SUCCESS;	
+					}
 					
-					if(index >= 255)
-						index = 0;
+					/* If in API mode, it can still receive transparent messages, but it will append with API details
+					 * So don't add something like this (left as example of what may seem like a good option but is not)
+					if(response.length() >= 15)  //we must already be in transparent mode and receiving a lots of data
+					{
+						LOGGER.info("Already in AT Mode at startup, response: " + response);
+						return CMD_ALREADY_IN_TRANSPARENT;
+					}*/
 				}				
-			}		
+			}
+					
 		} catch (Exception e)
 		{
-			LOGGER.info("Exception when sending AT Command: " + cmd);
+			LOGGER.warning("Exception when sending AT Command: " + cmd);
 		}
 		
 		//If don't get the right sequence above, we failed
-		return false;
+		return CMD_FAILED;
     	
     }
 
@@ -293,41 +325,42 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     //handles the DATA_AVAILABLE event -> which is generated when 1 byte received, and not regenerated
     public void serialEvent(SerialPortEvent evt) {
         if (evt.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
+        	
+        	int newByte; 
+        	String packet = "";
+        	
+        	
             try {
             	
-	        	int newByte; 
+	        	
+	        	//Reset all variables (believe they already will be, but if exception happens may not be)
+				byteInd = 0;
+				packetStartInd = packetEndInd = -1;
+				if(received.length() > 0)  //not sure if this is necessary, but add to be safe
+					received.delete(0, received.length());
       	
 	        	//THIS LOOP GETS A COMPLETE PACKET
-	        	//note: input.read blocks until data is available, so don't have to worry about going through while with repeated data
-	        	while((newByte = input.read()) > -1)
+	        	while(true)   // (newByte = input.read()) > -1)
 	        	{	
-	        		System.out.print(newByte);
+		        	//note: input.read blocks until data is available, so don't have to worry about going through with no data
+	        		newByte = input.read();
 					received.append(new String(new byte[] {(byte)newByte}));
-					receivedBytes[byteInd++] = (byte)newByte;  //shouldn't lose information, since newByte is int between 0-255
-
-					//If the received buffer is too long (somehow missed end, corrupted data, etc). Wipe clean and get a fresh start
-					//TODO - Maybe have the start be '**' instead of '*'					
-					if(byteInd > 2*DATA_PACKET_L) 
-					{
-						LOGGER.info("Invalid Packet (Too long), resetting received buffer");
-						byteInd = 0;
-						received.delete(0, received.length());      	
-						packetStartInd = packetEndInd = -1;
-					}
+					receivedBytes[byteInd] = (byte)newByte;  //shouldn't lose information, since newByte is int between 0-255
+					//System.out.print(newByte + " ");
 					
 					//IF we receive the start character AND we are not currently in the middle of a valid packet, we assume 
 					//to be at the start of a valid packet (if already have a packetStartInd, we assume the '*' is part of bytewise data message
 					if(newByte == START_CHAR && packetStartInd == -1) 						
 					{	
-						packetStartInd = byteInd-1;
+						packetStartInd = byteInd;
 					}
 					
-					/* UNTESTED CLEARER WAY OF DOING BELOW  */
 					//If at current byte and previous byte are both 'END_CHAR', then we have a correct 'end packet sequence'
 					//Note byteEnd has already been incremented at this pt, hence [byteInd - 2] to get the previous byte received
-					else if(byteInd >= 2 && receivedBytes[byteInd-2] == END_CHAR && newByte == END_CHAR) 
+					else if(byteInd >= 2 && receivedBytes[byteInd-1] == END_CHAR && receivedBytes[byteInd] == END_CHAR && packetStartInd != -1) 
 					{
-						packetEndInd = byteInd-1;  //(Note the '-1' since already incremented byteInd)
+						//System.out.println("End Sequence: " + receivedBytes[byteInd-1] + " " + receivedBytes[byteInd-1]);
+						packetEndInd = byteInd;  //(Note the '-1' since already incremented byteInd)
 						break;
 						
 						/* Notes on the chances of a false 'end packet sequence' (ie. END_CHAR showing up as back to back bytes in a float)
@@ -337,12 +370,25 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 						 *3. The 'seconds' value is sent last, and is a short between 0-60, and therefore never has the value END_CHAR. 
 						 * This removes the possibility that 1/256 packets it ends one too short
 						 */
+					}	
+					
+					//increment byte Index
+					byteInd++;
+					
+					//If the received buffer is too long (somehow missed end, corrupted data, etc). Wipe clean and get a fresh start
+					//TODO - Maybe have the start be '**' instead of '*'					
+					if(byteInd > 4*DATA_PACKET_L) 
+					{
+						LOGGER.warning("Invalid Packet (Too long), resetting received buffer");
+						byteInd = 0;
+						received.delete(0, received.length());      	
+						packetStartInd = packetEndInd = -1;
+		    			invalidPacketReceived(received.toString());		
 
-					}							
-		       	}     	
-	            	
-	        	String packet = received.toString();
-	        	
+					}
+		       	}  
+        	       	
+	             //LOGGER.info("Packet Received: " + packet + "  [Start, End] = [" + packetStartInd + ", " + packetEndInd + "]");
 	        	//After reaching here, we have had a '*' <some values> then 'ee'
 	        	//We now want to determine whether it is a valid packet -> certain characteristics about start/end index should be true
 	                   	
@@ -352,26 +398,39 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 				//iii) The start index is not -1 (otherwise we haven't started packet). This could occur on first connection, 
 						//when receiving the tail end of previous packet, would reach this point without a '*' being detected
 	        	if(packetStartInd < packetEndInd && packetEndInd > 0 && packetStartInd >= 0)
-	        	{	        		
+	        	{	     
+		        	packet = received.substring(packetStartInd, packetEndInd + 1);  //+1 since end non-inclusive
+		        	System.arraycopy(receivedBytes, packetStartInd, receivedPacket, 0, packetEndInd - packetStartInd);  //extract packet in bytes
+		        	//NOTE - we may lose a byte (I'm not sure), but that byte is 'e' and is not important for any message
+		        	
 					packetReceived(packet, receivedBytes.clone());     									
 	        	}
 				//Bad Packet (if above not fulfilled, bad packet)
 				else   
 				{
-					System.out.println("Bad Start/End Packet Ind, Length = " + (packetEndInd-packetStartInd));				
-	    			invalidPacketReceived(packet);		
+					LOGGER.warning("Bad Start/End Packet Ind: EndInd = " + packetEndInd + " Start: "  + packetStartInd + " L = " + (packetEndInd-packetStartInd));
+					
+					StringBuffer msg = new StringBuffer();
+					for(int i = 0; i <= byteInd; i++)
+					{
+						msg.append(receivedBytes[i] + " ");  //Put byte array into string of numbers
+					}				
+	    			invalidPacketReceived(msg.toString());		
 				}
 				
-				//Regardless of the 'case', we reset the variables and delete the received 
-				byteInd = 0;
-				packetStartInd = packetEndInd = -1;
-				if(received.length() > 0)  //not sure if this is necessary, but add to be safe
-					received.delete(0, received.length());
+			
 	        }
 	        catch (Exception e) {
-	            LOGGER.warning("Failed to read data.");
+	            LOGGER.warning("Exception while receiving data. Exception: " + e.toString() + "\nData is: " + packet);
 	            e.printStackTrace();
-	        }           
+	        }
+            
+        	//Regardless of the 'case', we reset the variables and delete the received 
+			byteInd = 0;
+			packetStartInd = packetEndInd = -1;
+			if(received.length() > 0)  //not sure if this is necessary, but add to be safe
+				received.delete(0, received.length());          
+            
         }
     }
     

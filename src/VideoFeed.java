@@ -76,8 +76,8 @@ public class VideoFeed extends JPanel{
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
-	//private final static int vidRows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
-	private int rows = 576, cols = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private int rows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
+	//private int rows = 576, rows = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
 	
 	//note: there are ~1000 vertical pixels to work with.  This takes up 150+576 = 776, leaving ~250 for other stuff
 	
@@ -98,11 +98,11 @@ public class VideoFeed extends JPanel{
 	private BufferedImage img; // = new BufferedImage(cols, rows+fpR, BufferedImage.TYPE_3BYTE_BGR);
 
 	//state variables (containing information about current state of plane)
-	public double airSpd = 7, altitude = 8; 
-	public double lattitude, longitude;
+	public double airSpdMps = 7, altitudeFt = 8; 
+	public double lattitudeDDM, longitudeDDM;
 	public int  second, millisec;
 	public boolean isDropped = false;  
-	public double altAtDrop = 0, heading = 270; //whether the payload has been dropped
+	public double altAtDropFt = 0, heading = 270; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false;
 	public int currentRecordingFN = 0;
 	public double frameRate = 0;
@@ -290,7 +290,7 @@ public class VideoFeed extends JPanel{
 			{
 				modifiedFrame.setColor(Color.GREEN);
 				modifiedFrame.drawString("Payload Dropped", cols - 200, rows - 30);
-				modifiedFrame.drawString("Height At Drop = " + (int)altAtDrop + " ft", cols - 200, rows - 60);
+				modifiedFrame.drawString("Height At Drop = " + (int)altAtDropFt + " ft", cols - 200, rows - 60);
 			}
 			else
 			{
@@ -354,8 +354,11 @@ public class VideoFeed extends JPanel{
     
     private void saveFrame() {
     		//can change wher you want to save to
-    		File outputfile = new File("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
-						"Aero" + File.separator + "Images" + File.separator + startDate + "_" + currentRecordingFN + ".jpg");
+    		//File outputfile = new File("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
+			//			"Aero" + File.separator + "Images" + File.separator + startDate + "_" + currentRecordingFN + ".jpg");
+    		
+    		new File("VideoFrames").mkdirs();
+    		File outputfile = new File("VideoFrames" + File.separator + startDate + "_" + currentRecordingFN + ".jpg");
 			
     		/* This way is simpler but doesn't give quality options:  
 			try {
@@ -405,15 +408,15 @@ public class VideoFeed extends JPanel{
 	public boolean getRecordStatus() {  return recordingVideo;  }
 	
 	//if too many values, might want to send as enum/struct type? does java have that
-	public void updateValues(double alt, double airspeed, double latt, double longit, double head, int sec, int ms)  //add more as necessary (ie. GPS).
+	public void updateValues(double altitudeFt, double airspeedMps, double lattDDM, double longitDDM, double head, int sec, int ms)  //add more as necessary (ie. GPS).
 	{
-		airSpd = airspeed;
-		altitude = alt;
-		lattitude = latt;
-		longitude = longit;
-		heading = head;
-		second = sec;
-		millisec = ms;
+		this.airSpdMps = airspeedMps;
+		this.altitudeFt = altitudeFt;
+		this.lattitudeDDM = lattDDM;
+		this.longitudeDDM = longitDDM;
+		this.heading = head;
+		this.second = sec;
+		this.millisec = ms;
 		
 		
 	}
@@ -421,7 +424,7 @@ public class VideoFeed extends JPanel{
 	public void changeDropStatus(boolean dropped)  //this function will really only ever be called to set it to 'true'
 	{
 		if(dropped)
-			altAtDrop = altitude; //whatever the last received altitude was. This is close enough
+			altAtDropFt = altitudeFt; //whatever the last received altitude was. This is close enough
 		
 		isDropped = dropped;
 	}

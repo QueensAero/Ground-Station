@@ -11,6 +11,7 @@ import java.util.*;
 import java.util.logging.Logger;
 
 import javax.swing.*;
+import javax.swing.text.DefaultCaret;
 
 public class TextAreaOutputStream
 extends OutputStream
@@ -22,6 +23,7 @@ extends OutputStream
 
 private byte[]                          oneByte;                                                    // array for write(int val);
 private Appender                        appender;                                                   // most recent action
+boolean autoScroll = true;
 
 public TextAreaOutputStream(JTextArea txtara) {
     this(txtara,1000);
@@ -89,6 +91,7 @@ static private String bytesToString(byte[] ba, int str, int len) {
         curLength=0;
         clear    =false;
         queue    =true;
+        
         }
 
     synchronized void append(String val) {
@@ -115,6 +118,11 @@ static private String bytesToString(byte[] ba, int str, int len) {
                 curLength=0;
                 }
             textArea.append(val);
+            
+            //Always scroll to bottom
+           	textArea.setCaretPosition(textArea.getDocument().getLength());
+            
+
             }
         values.clear();
         clear =false;

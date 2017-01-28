@@ -56,8 +56,8 @@ public class MainWindow extends JPanel implements PacketListener {
 	public Targeter targeter;
 	private JComboBox commPortSelector;
 	private JButton btnRefresh, btnConnect; //connection buttons
-	private JButton btnEnable, btnClearData, btnRequestAltAtDrop;
-	private JButton btnToggleAutoDrop, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
+	private JButton btnEnable, btnClearData, btnRequestAltAtDrop, btnRequestBattV;
+	private JButton btnAutoDropOn, btnAutoDropOff, btnDrop, btnCloseDropBay, btnSensorReset, btnPlaneRestart; //servo control buttons
 	private JButton btnStartRecording, btnRestartStream, btnResetDrop;  //button to start/stop recording
 	private JButton btnUpdateTarget; // Opens dialog to edit GPS target
 	public PrintStream console; //to display all console messages
@@ -65,6 +65,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	private JLabel lblAlt, lblAltAtDrop; //labels to display the values
 	private JLabel lblLat, lblLon;
 	private SerialCommunicator serialComm;
+	private TextAreaOutputStream outputStream;
 	JDialog calibrator;
 	long connectTime;
 	boolean btnsEnabled = false;
@@ -74,7 +75,6 @@ public class MainWindow extends JPanel implements PacketListener {
 	Timer threadTimer; 
 	
 	//logging variables
-	private Path logPath;
 	SimpleDateFormat sdf;
 	String startDate;
 	long startTime = 0;
@@ -91,30 +91,39 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		gpsTargetDialog = new GPSTargetDialog(frame, "GPS Target", this);
 		gpsTargetDialog.pack();
+		startTime = System.currentTimeMillis();
 	}
 	
 	private void logData() {
 		LocalDateTime now = LocalDateTime.now();
 		//Log format: "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+		GPSPos basePos = targeter.getbaseGPSPos();  //This is last received GPS point (NOT projected forward based on delay)
+		GPSPos targetPos = targeter.getTargetPos();  //This is last received GPS point (NOT projected forward based on delay)
+
+		
 		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() + targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
 					+ "." + now.getMinute() +"."+ (now.getSecond() + now.get(ChronoField.MILLI_OF_SECOND)/1000.0) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
-					+ "," + String.format("%.4f",videoFeed.airSpd) + "," 
-					+ String.format("%.4f",videoFeed.altitude) + "," + String.format("%.4f",videoFeed.lattitude) + ","	+ String.format("%.4f",videoFeed.longitude) + "," 
-					+ String.format("%.3f",targeter.heading) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
+					+ "," + String.format("%.4f",basePos.getVelocityMPS()) + "," 
+					+ String.format("%.4f",basePos.getAltitudeFt()) + "," + String.format("%.4f",basePos.getUTMEasting()) + ","	+ String.format("%.4f",basePos.getUTMNorthing()) + "," 
+					+ String.format("%.3f",basePos.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
-					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDrop) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
-					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "\n";
+					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDropFt) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
+					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", targetPos.getUTMEasting()) 
+					+ "," + String.format("%.2f", targetPos.getUTMNorthing()) + "\n";
+		
 		LOGGER.finer(s); // Log to file only
 	}
 		
 	//set enabled setting for all plane control buttons at once
 	private void setControlButtons (boolean val) {
 		btnDrop.setEnabled(val);
-		btnToggleAutoDrop.setEnabled(val);
+		btnAutoDropOn.setEnabled(val);
+		btnAutoDropOff.setEnabled(val);
 		btnCloseDropBay.setEnabled(val);
 		btnSensorReset.setEnabled(val);
 		btnPlaneRestart.setEnabled(val);
 		btnRequestAltAtDrop.setEnabled(val);
+		btnRequestBattV.setEnabled(val);
 		btnsEnabled = val;
 	}
 	
@@ -204,11 +213,19 @@ public class MainWindow extends JPanel implements PacketListener {
 				}
 			});
 			
-			btnToggleAutoDrop.addActionListener(new ActionListener() {
+			btnAutoDropOn.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					// Toggle autoDrop enable, the plane should respond to tell us what mode it is in
 					serialComm.write('a');
-					LOGGER.info("Toggle Auto-Drop sent.");
+					LOGGER.info("Sent 'Turn on Auto-Drop' Msg.");
+				}
+			});
+			
+			btnAutoDropOff.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					// Toggle autoDrop enable, the plane should respond to tell us what mode it is in
+					serialComm.write('n');
+					LOGGER.info("Sent 'Turn off Auto-Drop' Msg.");
 				}
 			});
 			
@@ -284,6 +301,14 @@ public class MainWindow extends JPanel implements PacketListener {
 					LOGGER.info("Altitude at drop requested.");
 				}
 			});
+			
+			btnRequestBattV.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					serialComm.write('b');  //send command to request the altitude at drop value
+					LOGGER.info("Requested battery voltage.");
+				}
+			});
+			
 			
 			btnUpdateTarget.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
@@ -404,7 +429,8 @@ public class MainWindow extends JPanel implements PacketListener {
 		consolePanel.setPreferredSize(new Dimension(preferredWidth, 200));
 		consoleTextArea = new JTextArea();
 		JScrollPane consoleScroller = new JScrollPane(consoleTextArea);
-		console = new PrintStream(new TextAreaOutputStream(consoleTextArea));
+		outputStream = new TextAreaOutputStream(consoleTextArea);
+		console = new PrintStream(outputStream);
 		consolePanel.setLayout(new BorderLayout());
 		consoleScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		DefaultCaret consoleCaret = (DefaultCaret)consoleTextArea.getCaret();
@@ -466,8 +492,8 @@ public class MainWindow extends JPanel implements PacketListener {
 
 		this.add(horizSplitPane, BorderLayout.CENTER);
 		
-		lblLat.setText(Double.toString(targeter.getTargetPos().getLatitude()));
-		lblLon.setText(Double.toString(targeter.getTargetPos().getLongitude()));
+		lblLat.setText(Double.toString(targeter.getTargetLattDDM()));
+		lblLon.setText(Double.toString(targeter.getTargetLongDDM()));
 	}
 	
 	private JPanel initializeServoButtonPanel() {
@@ -479,8 +505,11 @@ public class MainWindow extends JPanel implements PacketListener {
 		btnEnable = new JButton("Enable/Disable Resets");
 		servoButtonPanel.add(btnEnable);
 		
-		btnToggleAutoDrop = new JButton("Enable AutoDrop");
-		servoButtonPanel.add(btnToggleAutoDrop);
+		btnAutoDropOn = new JButton("Enable AutoDrop");
+		servoButtonPanel.add(btnAutoDropOn);
+		
+		btnAutoDropOff = new JButton("Disable AutoDrop");
+		servoButtonPanel.add(btnAutoDropOff);
 		
 		btnDrop = new JButton("Drop");
 		servoButtonPanel.add(btnDrop);
@@ -496,6 +525,9 @@ public class MainWindow extends JPanel implements PacketListener {
 		
 		btnRequestAltAtDrop = new JButton("Get Alt @ Drop");
 		servoButtonPanel.add(btnRequestAltAtDrop);
+		
+		btnRequestBattV = new JButton("Check Battery");
+		servoButtonPanel.add(btnRequestBattV);
 		
 		btnResetDrop = new JButton("Reset Drop");
 		servoButtonPanel.add(btnResetDrop);		
@@ -588,13 +620,15 @@ public class MainWindow extends JPanel implements PacketListener {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 	
 		//TODO - log the invalid packet (check this is correct  with Ick)
-		LOGGER.info("Invalid Packet Received at " + time + " s, Raw String: " + packet);
-		
+		if(packet.length() > 0)
+			LOGGER.warning("Invalid Packet Received at " + time + " s, Raw String: " + packet);
+		else
+			LOGGER.warning("Invalid Empty Packet Received at " + time + " s");
+
 	}
 	
 	//called from SerialCommunicator
 	public void packetReceived(String packet, byte[] byteArray) {
-		//System.out.println(packet);
 		analyzePacket(packet, byteArray);
 	}
 	
@@ -602,15 +636,19 @@ public class MainWindow extends JPanel implements PacketListener {
 	//*pXXXXYYYYZZZZAAAABBBBCCCCDDDDsttee    is updated old way, 35 bytes longW
 	//with XXXX = four bytes which combined make a float, s = 1 byte making uint8_t, tt = 2 bytes making uint16_t, 
 	//*pXXXXYYYYZZZZAAAABBBBsttee is the newer way -> no longer sending roll or pitch, 27 bytes long
+	//Ie. in order, it's alt, spd, lat, long, heading
 	
-	final static int DATA_PACKET_L = 27;  //NOTE -> if changes, must also update in SerialCommunicator
-	final static int ALTATDROP_PACKET_L = 8;
+	final static int DATA_PACKET_L = 27,  //NOTE -> if changes, must also update in SerialCommunicator
+					ALTATDROP_PACKET_L = 8,
+					BATT_LEVEL_PACKET_L = 8;
+	
 	final static int ACKNOWLEDGE_PACKET_L = 4;  //This is common to a bunch of 'acknowledge' type messages
 
 
 	//called from packetReceived, which is called by Serial communcator.  Analyzes a complete packet
 	private void analyzePacket (String str, byte[] byteArray) {
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
+
 		
 		int byteArrayInd = 2;  //The start of data is at index 2 (0th = '*',  1st = 'p' or 'a')
 			
@@ -637,13 +675,15 @@ public class MainWindow extends JPanel implements PacketListener {
 			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
 			
 			//Unit conversion things
-			dblArr[3] = Math.round(10000*dblArr[3]*0.514444)/10000.0;  //CONVERT from knots TO m/s
-			dblArr[5] *= -1;		//acount for the fact it should have 'W' attached (western hemisphere == negative longitude)
+			dblArr[1] = Math.round(100*dblArr[1]*0.514444)/100.0;  //CONVERT from knots TO m/s, round to 2 decimal places
+			if(dblArr[3] > 0)  
+				dblArr[3]= -dblArr[3];	//We are always in western hemisphere, so longitude always is negative
 			
 			//print altitude to status area (top left)
-			lblAlt.setText(""+dblArr[0]);	
+			lblAlt.setText(""+dblArr[0]);				
 			
-			
+			//UNITS - dblArr[0] is in FEET - both functions below expect altitude in feet. Altitude is logged in feet as well
+					
 			//Update data in VideoFeed Class 
 			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], timeArr[0], timeArr[1]);
 						
@@ -651,6 +691,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], timeArr[0], timeArr[1]);
 
 			logData(); // Log the new state each time new data is received 
+
 		}
 		//RETURN AFTER REQUESTING ALT AT DROP
 		else if (str.substring(1, 2).equals("a") && str.length() == ALTATDROP_PACKET_L) {  
@@ -660,14 +701,36 @@ public class MainWindow extends JPanel implements PacketListener {
 			LOGGER.info("Altitude at drop = " + altitudeAtDrop);  //print result to console
 
 		}
+		//BATTERY LEVEL
+		else if(str.substring(1, 2).equals("w") && str.length() == BATT_LEVEL_PACKET_L)
+		{
+			double batteryV = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
+				
+			//Convert Voltage into state of charge (roughly)
+			//https://www.google.ca/search?q=lipo+voltage+percentage+chart&source=lnms&tbm=isch&sa=X&ved=0ahUKEwjf3YzrtuXRAhUDL8AKHWAeA20Q_AUICCgB#imgrc=W3tAf46IsrwmMM%3A
+			
+			//Crude LUT
+			long index = Math.round(((batteryV - 10.5)*10));   //10.5 -> 0, 10.6 -> 1 .... 12.6 -> 21
+			int[] battP = {0, 1, 2, 3, 4, 5, 6, 8, 10, 13, 16, //up to 11.5V
+							20, 24, 30, 40, 45, 50, 60, 70, 80, 90, 100 }; //up to 12.6
+			if(index < 0)
+				index = 0;
+			else if(index >= battP.length)
+				index = battP.length - 1;
+			LOGGER.info("Battery Voltage = " + Math.round(100*batteryV)/100.0 + " V, Battery Percentage = " + battP[(int)index] + " %");  //print result to console
+			
+		}
 		//REMAINING ARE ACKNOWLEGEMENT MESSAGES
 		else if(str.length() == ACKNOWLEDGE_PACKET_L)
 		{	
 			if (str.substring(1, 2).equals("s")) {
-				LOGGER.info(time + "s: Start");
+				LOGGER.info(time + "s: Communicator Initialized Successfully");
 			}
 			else if (str.substring(1, 2).equals("k")) {
 				LOGGER.info(time + "s: Reset Acknowledge");
+			}
+			else if (str.substring(1, 2).equals("r")) {
+				LOGGER.info(time + "s: Plane Ready");
 			}
 			else if (str.substring(1, 2).equals("q")) {
 				LOGGER.info(time + "s: Restart Acknowledge");
@@ -684,18 +747,16 @@ public class MainWindow extends JPanel implements PacketListener {
 			else if (str.substring(1, 2).equals("b")) {
 				LOGGER.info(time + "s: Auto Drop ON confirmation.");
 				targeter.setAutoDropEnabled(true);
-				btnToggleAutoDrop.setText("Disable AutoDrop");
 			}
 			else if (str.substring(1, 2).equals("d")) {
 				LOGGER.info(time + "s: Auto Drop OFF confirmation.");
 				targeter.setAutoDropEnabled(false);
-				btnToggleAutoDrop.setText("Enable AutoDrop");
 			}
 			else if (str.substring(1, 2).equals("o")) {
 				LOGGER.info(time + "s: Open Drop Bay Acknowledge");
 			}
 			else if(str.substring(1, 2).equals("c")) {
-				LOGGER.info(time + "s: Close Drop Bay Acknowledge");
+				LOGGER.info(time + "s: Drop Bay Closing (either auto or commanded)");
 			}
 			else if (str.substring(1, 2).equals("1")) {
 				LOGGER.info(time + "s: MPU6050 Ready");
@@ -712,11 +773,20 @@ public class MainWindow extends JPanel implements PacketListener {
 			else if (str.substring(1, 2).equals("5")) {
 				LOGGER.info(time + "s: MPU6050 Initializing");
 			}
+			else {
+				LOGGER.warning(time + "s: Unknown Message Character of '" + str.substring(1, 2) + "'");
+			}
+			
 		}
 		//IF NONE OF THE ABOVE, INVALID PACKET
 		else
 		{
-			invalidPacketReceived(str);			
+			StringBuffer msg = new StringBuffer();
+			for(int i = 0; i < byteArray.length; i++)
+			{
+				msg.append(byteArray[i] + " ");  //Put byte array into string of numbers
+			}
+			invalidPacketReceived(msg.toString());			
 		}
 	}
 	

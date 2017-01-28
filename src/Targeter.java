@@ -35,7 +35,7 @@ public class Targeter extends JPanel {
 	//TODO - have size scale to current size allocated to targeter
 	
 	//curent GPS information
-	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitude = 0, longitude = 0, heading = 0;  //altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
+	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitudeDDM = 0, longitudeDDM = 0, heading = 0;  //altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
 	int  second = 0, millisec = 0;
 	int msFromGPSCoord = 0;
 	
@@ -70,7 +70,7 @@ public class Targeter extends JPanel {
 	
 	
 	//GPSPos objects (initialize positions to some offset from target. Currently target is a pt behind ILC
-	double targetLatt = 4413.7167, targetLong = -7629.4883;  //behind ILC
+	double targetLattDDM = 4413.724, targetLongDDM = -7629.492;  //behind ILC
 	//double targetLatt = 4413.64328, targetLong = -7629.33616;  //fence post or far basebaal diamond
 
 	public GPSPos baseGPSposition; 
@@ -97,7 +97,7 @@ public class Targeter extends JPanel {
 		LocalDateTime now = LocalDateTime.now();	//to have a current timestamp
 		double tempInitV = 15, tempInitAltMeters = 34, tempInitHeading = 45;   
 		int initXOff = -350, initYOff = -350;  //base initial position in meters from target position
-		targetPos = new GPSPos(targetLatt, targetLong,0,0,0,0,0);   //this is currently just behind ILC. NOTE how Long component declared as negative to account for west
+		targetPos = new GPSPos(targetLattDDM, targetLongDDM,0,0,0,0,0);   //this is currently just behind ILC. NOTE how Long component declared as negative to account for west
 		baseGPSposition = new GPSPos(targetPos.getUTMZone(), targetPos.getUTMLetter(), targetPos.getUTMNorthing()+initYOff, targetPos.getUTMEasting()+initXOff, 
 									tempInitV, tempInitAltMeters, tempInitHeading, now.getSecond(),now.get(ChronoField.MILLI_OF_SECOND));  //start -initYOff S & -initXOff W of target 
 		GSPTargeting = new GPSTargeter(targetPos);
@@ -112,12 +112,18 @@ public class Targeter extends JPanel {
 	
 	}
 	
-	public void setTargetPos(double targetLat, double targetLon) {
-		targetPos = new GPSPos(targetLat, targetLon, 0, 0, 0, 0, 0);
+	public void setTargetPos(double targetLatDDM, double targetLonDDM) {
+		targetPos = new GPSPos(targetLatDDM, targetLonDDM, 0, 0, 0, 0, 0);
 		GSPTargeting.setTargetPos(targetPos);
 	}
 	
+	public double getTargetLattDDM() { return targetLattDDM; }
+	public double getTargetLongDDM() { return targetLongDDM; }
+
 	public GPSPos getTargetPos() { return targetPos; }
+	public GPSPos getbaseGPSPos() { return baseGPSposition; }
+
+
 	public double getEstDropPosXMetres() { return estDropPosXMetres; }
 	public double getEstDropPosYMetres() { return estDropPosYMetres; }
 	public double actEstDropPosXMeters() { return actEstDropPosXMeters; }
@@ -189,10 +195,10 @@ public class Targeter extends JPanel {
 			planePosYMetres = curGPSPosition.getUTMNorthing() - targetPos.getUTMNorthing();
 			estDropPosXMetres = planePosXMetres + GSPTargeting.getDropDistance()*Math.cos(curGPSPosition.getMathAngle()*Math.PI/180);
 			estDropPosYMetres = planePosYMetres + GSPTargeting.getDropDistance()*Math.sin(curGPSPosition.getMathAngle()*Math.PI/180);
-			
+				
 			lateralError = GSPTargeting.getLateralError();
 	 		timeToDrop = GSPTargeting.getTimeToDrop();
-	 		altitudeFt = curGPSPosition.getAltitude()/FT_TO_METRES;
+	 		altitudeFt = curGPSPosition.getAltitudeFt();
 		}
 		
 	}
@@ -214,6 +220,8 @@ public class Targeter extends JPanel {
     		yTextMult = 1;
     	
     	textFrame.drawString("Pos: (" + String.format( "%.1f", estDropPosXMetres) + ", " + String.format( "%.1f", estDropPosYMetres) + ")", startTextX, yTextSpace*yTextMult++);
+    	double dataAge = System.currentTimeMillis() - baseGPSposition.getSystemTime();
+    	textFrame.drawString("Data Age: " + String.format( "%.2f",(System.currentTimeMillis() - baseGPSposition.getSystemTime())/1000.0) + " seconds", startTextX, yTextSpace*yTextMult++);
     	
     	if(!payloadDropped)
     	{		   		
@@ -343,19 +351,19 @@ public class Targeter extends JPanel {
 	public int getRows() {  return rows; }
 	public int getCols() {  return cols; }
 	
-	public void updateGPSData(double alt, double spd, double Lat, double Long, double headng, int sec, int ms ){
+	public void updateGPSData(double altitudeFt, double spd, double LatDDM, double LongDDM, double headng, int sec, int ms ){
 
-		altitudeFt = alt;
-		altitudeMetres = alt*FT_TO_METRES;
-		speed = spd;
-		lattitude = Lat;
-		longitude = Long;
-		heading = headng;
-		second = sec;
-		millisec = ms;
+		this.altitudeFt = altitudeFt;
+		this.altitudeMetres = altitudeFt*FT_TO_METRES;
+		this.speed = spd;
+		this.lattitudeDDM = LatDDM;
+		this.longitudeDDM = LongDDM;
+		this.heading = headng;
+		this.second = sec;
+		this.millisec = ms;
 		
 				
-		baseGPSposition = new GPSPos(lattitude, longitude, speed, altitudeMetres,heading, sec, ms);
+		baseGPSposition = new GPSPos(lattitudeDDM, longitudeDDM, speed, altitudeMetres,heading, sec, ms);
 		
 		LocalDateTime now = LocalDateTime.now();
 		msFromGPSCoord = getMsBetween(second, millisec, now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
@@ -367,10 +375,10 @@ public class Targeter extends JPanel {
 	{
 		LocalDateTime now = LocalDateTime.now();
 		msFromGPSCoord = getMsBetween(baseGPSposition.getSecond(), baseGPSposition.getMilliSecond(), now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
-		double curNorthing = projectYForward(baseGPSposition.getVelocity(), baseGPSposition.getMathAngle(), baseGPSposition.getUTMNorthing(), msFromGPSCoord +TIME_DELAY_MS_BEFORE_DROP);
-		double curEasting = projectXForward(baseGPSposition.getVelocity(), baseGPSposition.getMathAngle(), baseGPSposition.getUTMEasting(), msFromGPSCoord+TIME_DELAY_MS_BEFORE_DROP); 
-		curGPSPosition = new GPSPos(baseGPSposition.getUTMZone(), baseGPSposition.getUTMLetter(), curNorthing, curEasting, baseGPSposition.getVelocity(), 
-										baseGPSposition.getAltitude(), baseGPSposition.getHeading(), now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
+		double curNorthing = projectYForward(baseGPSposition.getVelocityMPS(), baseGPSposition.getMathAngle(), baseGPSposition.getUTMNorthing(), msFromGPSCoord +TIME_DELAY_MS_BEFORE_DROP);
+		double curEasting = projectXForward(baseGPSposition.getVelocityMPS(), baseGPSposition.getMathAngle(), baseGPSposition.getUTMEasting(), msFromGPSCoord+TIME_DELAY_MS_BEFORE_DROP); 
+		curGPSPosition = new GPSPos(baseGPSposition.getUTMZone(), baseGPSposition.getUTMLetter(), curNorthing, curEasting, baseGPSposition.getVelocityMPS(), 
+										baseGPSposition.getAltitudeM(), baseGPSposition.getHeading(), now.getSecond(), now.get(ChronoField.MILLI_OF_SECOND));
 		
 		//note the reasons why getHeading() vs. getMathAngle() are used
 				
@@ -412,7 +420,7 @@ public class Targeter extends JPanel {
 		timeBtwn = secondsTerm + msTerm;
 		
 		//TEMP - change to something like 5000 later
-		if(timeBtwn > 50000 || timeBtwn < 0)  //if >5 seconds, point likely an error, so return the average assumed offset of 1 second (NOTE: change this based on testing)
+		if(timeBtwn > 5000 || timeBtwn < 0)  //if >5 seconds, point likely an error, so return the average assumed offset of 1 second (NOTE: change this based on testing)
 		{	
 			//System.out.println("Offset: " + timeBtwn + " ms rejected (too high)");
 			timeBtwn = 1000;

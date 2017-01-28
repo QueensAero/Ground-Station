@@ -62,7 +62,7 @@ public class GPSTargeter {
 			latError = computeLateralErr();
 			timeToDrop = timeToDrop();
 			speechManager.reportTime(timeToDrop);
-			speechManager.reportAltitude(curPos.getAltitude());
+			speechManager.reportAltitude(curPos.getAltitudeFt());  //FEET
 		}
 	}
 	
@@ -162,7 +162,7 @@ public class GPSTargeter {
 		double horizDist = 0;
 		// targetPos.getAltitude() will probably be 0, but I included it just in case:
 		//double heightm = (curPos.getAltitude() - targetPos.getAltitude())  / 3.28084; // convert feet to meters
-		double heightm = (curPos.getAltitude() - targetPos.getAltitude()); // Altitudes are already in m
+		double heightm = (curPos.getAltitudeM() - targetPos.getAltitudeM()); // Altitudes are already in m
 		// Calculate time for payload to fall:
 		if(heightm < 0)
 			heightm = 0;  //prevent NaN from sqrt
@@ -172,7 +172,7 @@ public class GPSTargeter {
 		
 				
 		// Calculate horizontal distance that payload will travel in this time:
-		horizDist = curPos.getVelocity() * fallTime*CORRECTION_FACTOR;
+		horizDist = curPos.getVelocityMPS() * fallTime*CORRECTION_FACTOR;
 		return horizDist;
 	}
 	
@@ -186,7 +186,7 @@ public class GPSTargeter {
 		double time;
 		distRemaining = pathDistToTarget() - dropDistance();
 		// t = d/v
-		time = distRemaining / curPos.getVelocity();
+		time = distRemaining / curPos.getVelocityMPS();
 		return time;
 	}
 }

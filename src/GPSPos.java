@@ -3,15 +3,17 @@ import java.util.logging.Logger;
 public class GPSPos {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
-	private double latitude;
-	private double longitude;
+	//Purposely don't have below - since it may not be initialized if constructor uses UTM coordinates
+	//private double latitudeDDM;
+	//private double longitudeDDM;
 	
-	private double velocity; // In m/s
-	private double altitude; // In meters
+	private double velocityMPS; // In m/s
+	private double altitudeM; // In meters
 	
 	private double heading; // In degrees (E = 0, N = 90, W = 180, S = 270)
 	private double mathAngle;  //in polar coordinates
 	private int second, milliSecond;  //timestamp (only need when this class is used to hold base point recieved from GPS)
+	private long systemTime;
 	
 	private int utmZone;
 	private char utmLetter;
@@ -21,31 +23,30 @@ public class GPSPos {
 	/*
 	 * Constructor that accepts position as latitude and longitude (in degrees).
 	 */
-	public GPSPos(double lat, double lon, double velocity, double altitude, double direction, int sec, int ms)
+	public GPSPos(double latDDM, double lonDDM, double velocityMPS, double altitudeM, double direction, int sec, int ms)
 	{
-		this.latitude = lat;
-		this.longitude = lon;
-		this.velocity = velocity;
-		this.altitude = altitude;
+		this.systemTime = System.currentTimeMillis();
+		this.velocityMPS = velocityMPS;
+		this.altitudeM = altitudeM;
 		this.second = sec;
 		this.milliSecond = ms;
-		this.heading = direction;
+		this.heading = direction;  //This is in degrees, with 0 = N, 90 = E
 		mathAngle = heading2MathAngle(direction);
-		convertDeg2UTM(decimalDegMin2Degree(lat), decimalDegMin2Degree(lon)); // Updates all utm attributes
+		convertDeg2UTM(decimalDegMin2Degree(latDDM), decimalDegMin2Degree(lonDDM)); // Updates all utm attributes
+		
+		//System.out.println("Utm Zone, Letter, N, E: " + utmZone + ", " + utmLetter + ", " + utmNorthing + ", " + utmEasting);
+
 		
 	}
 	
 	/*
 	 * Constructor that accepts position as UTM coordinates.
 	 */
-	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocity, double altitude, double direction, int sec, int ms)
+	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocityMPS, double altitudeM, double direction, int sec, int ms)
 	{
-		// Haven't bothered to calculate latitude and longitude given UTM coords:
-		latitude = 0;
-		longitude = 0;
-		
-		this.velocity = velocity;
-		this.altitude = altitude;
+		this.systemTime = System.currentTimeMillis();
+		this.velocityMPS = velocityMPS;
+		this.altitudeM = altitudeM;
 		this.heading = direction;
 		mathAngle = heading2MathAngle(direction);
 		
@@ -56,13 +57,16 @@ public class GPSPos {
 		this.second = sec;
 		this.milliSecond = ms;
 		
+		//System.out.println("Utm Zone, Letter, N, E: " + utmZone + ", " + utmLetter + ", " + utmNorthing + ", " + utmEasting);
+		
 	}
 	
 	
-	public double getLatitude() {return latitude; };
-	public double getLongitude() {return longitude; };
-	public double getVelocity() { return velocity;	}
-	public double getAltitude() { return altitude; }
+	//public double getLatitude() {return latitude; };
+	//public double getLongitude() {return longitude; };
+	public double getVelocityMPS() { return velocityMPS;	}
+	public double getAltitudeM() { return altitudeM; }
+	public double getAltitudeFt() { return altitudeM*3.28084; }
 	public double getHeading() { return heading;  }
 	public double getMathAngle() { return mathAngle; }
 	public double getUTMEasting() { return utmEasting; }
@@ -71,6 +75,7 @@ public class GPSPos {
 	public char getUTMLetter(){  return utmLetter;  }
 	public int getSecond() {  return second;  }
 	public int getMilliSecond() {  return milliSecond;  }
+	public long getSystemTime() { return systemTime; }
 	
 	double heading2MathAngle(double heading)
 	{
@@ -144,11 +149,14 @@ public class GPSPos {
             utmLetter='W';
         else
             utmLetter='X';
+        
         utmEasting=0.5*Math.log((1+Math.cos(lat*Math.PI/180)*Math.sin(lon*Math.PI/180-(6*utmZone-183)*Math.PI/180))/(1-Math.cos(lat*Math.PI/180)*Math.sin(lon*Math.PI/180-(6*utmZone-183)*Math.PI/180)))*0.9996*6399593.62/Math.pow((1+Math.pow(0.0820944379, 2)*Math.pow(Math.cos(lat*Math.PI/180), 2)), 0.5)*(1+ Math.pow(0.0820944379,2)/2*Math.pow((0.5*Math.log((1+Math.cos(lat*Math.PI/180)*Math.sin(lon*Math.PI/180-(6*utmZone-183)*Math.PI/180))/(1-Math.cos(lat*Math.PI/180)*Math.sin(lon*Math.PI/180-(6*utmZone-183)*Math.PI/180)))),2)*Math.pow(Math.cos(lat*Math.PI/180),2)/3)+500000;
-        utmEasting=Math.round(utmEasting*100)*0.01;
         utmNorthing = (Math.atan(Math.tan(lat*Math.PI/180)/Math.cos((lon*Math.PI/180-(6*utmZone -183)*Math.PI/180)))-lat*Math.PI/180)*0.9996*6399593.625/Math.sqrt(1+0.006739496742*Math.pow(Math.cos(lat*Math.PI/180),2))*(1+0.006739496742/2*Math.pow(0.5*Math.log((1+Math.cos(lat*Math.PI/180)*Math.sin((lon*Math.PI/180-(6*utmZone -183)*Math.PI/180)))/(1-Math.cos(lat*Math.PI/180)*Math.sin((lon*Math.PI/180-(6*utmZone -183)*Math.PI/180)))),2)*Math.pow(Math.cos(lat*Math.PI/180),2))+0.9996*6399593.625*(lat*Math.PI/180-0.005054622556*(lat*Math.PI/180+Math.sin(2*lat*Math.PI/180)/2)+4.258201531e-05*(3*(lat*Math.PI/180+Math.sin(2*lat*Math.PI/180)/2)+Math.sin(2*lat*Math.PI/180)*Math.pow(Math.cos(lat*Math.PI/180),2))/4-1.674057895e-07*(5*(3*(lat*Math.PI/180+Math.sin(2*lat*Math.PI/180)/2)+Math.sin(2*lat*Math.PI/180)*Math.pow(Math.cos(lat*Math.PI/180),2))/4+Math.sin(2*lat*Math.PI/180)*Math.pow(Math.cos(lat*Math.PI/180),2)*Math.pow(Math.cos(lat*Math.PI/180),2))/3);
         if (utmLetter<'M')
             utmNorthing = utmNorthing + 10000000;
+        
+        //Round readability (and note that 0.01 is in 'm', so the error is negligable
+        utmEasting=Math.round(utmEasting*100)*0.01;
         utmNorthing=Math.round(utmNorthing*100)*0.01;
     }
 }
