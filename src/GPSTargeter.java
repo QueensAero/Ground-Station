@@ -40,7 +40,10 @@ public class GPSTargeter {
 		targetPos = target;
 		latError = -1;
 		timeToDrop = -1;
-		speechManager = new SpeechManager();
+		speechManager = SpeechManager.getInstance();
+		speechManager.reportTime(12);
+		speechManager.reportTime(9.7);
+		speechManager.reportNewMessage("Drop Bay Closing.");
 	}
 	
 	public void setTargetPos(GPSPos target) {
