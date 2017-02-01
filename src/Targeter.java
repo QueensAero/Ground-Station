@@ -420,10 +420,14 @@ public class Targeter extends JPanel {
 		timeBtwn = secondsTerm + msTerm;
 		
 		//TEMP - change to something like 5000 later
-		if(timeBtwn > 5000 || timeBtwn < 0)  //if >5 seconds, point likely an error, so return the average assumed offset of 1 second (NOTE: change this based on testing)
+		if(timeBtwn > 10000)  //if >10 seconds, point likely an error, so return the average assumed offset of 1 second (NOTE: change this based on testing)
 		{	
 			//System.out.println("Offset: " + timeBtwn + " ms rejected (too high)");
-			timeBtwn = 1000;
+			timeBtwn = 10000;
+		}
+		else if (timeBtwn < 0)
+		{
+			timeBtwn = 0;
 		}
 					
 		return timeBtwn;

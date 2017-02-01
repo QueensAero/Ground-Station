@@ -609,7 +609,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
 			
 			//Unit conversion things
-			dblArr[1] = Math.round(100*dblArr[1]*0.514444)/100.0;  //CONVERT from knots TO m/s, round to 2 decimal places
+			dblArr[1] = Math.round(100*dblArr[1])/100.0;  //CONVERT from knots TO m/s, round to 2 decimal places
 			if(dblArr[3] > 0)  
 				dblArr[3]= -dblArr[3];	//We are always in western hemisphere, so longitude always is negative
 			
