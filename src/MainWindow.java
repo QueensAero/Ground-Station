@@ -55,6 +55,8 @@ import javax.swing.text.DefaultCaret;
 
 public class MainWindow extends JPanel implements PacketListener {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
+	private SpeechManager speechManager;
+	
 	private MainWindow me;
 	private StreamHandler consoleLogger;
 	public VideoFeed videoFeed;
@@ -90,6 +92,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	//constructor
 	public MainWindow (SerialCommunicator sc, JFrame frame) {
 		serialComm = sc;
+		speechManager = SpeechManager.getInstance();
 		initializeComponents();
 		initializeButtons();
 		me = this;
@@ -677,20 +680,25 @@ public class MainWindow extends JPanel implements PacketListener {
 			}
 			else if (str.substring(1, 2).equals("y")) {
 				LOGGER.info(time + "s: Drop Acknowledge");
+				speechManager.reportNewMessage("Drop acknowledge.");
 			}
 			else if (str.substring(1, 2).equals("b")) {
 				LOGGER.info(time + "s: Auto Drop ON confirmation.");
 				targeter.setAutoDropEnabled(true);
+				speechManager.reportNewMessage("Auto-Drop enabled confirmation.");
 			}
 			else if (str.substring(1, 2).equals("d")) {
 				LOGGER.info(time + "s: Auto Drop OFF confirmation.");
 				targeter.setAutoDropEnabled(false);
+				speechManager.reportNewMessage("Auto-Drop disabled confirmation.");
 			}
 			else if (str.substring(1, 2).equals("o")) {
 				LOGGER.info(time + "s: Open Drop Bay Acknowledge");
+				speechManager.reportNewMessage("Open Drop Bay Acknowledge.");
 			}
 			else if(str.substring(1, 2).equals("c")) {
 				LOGGER.info(time + "s: Drop Bay Closing (either auto or commanded)");
+				speechManager.reportNewMessage("Drop Bay Closing.");
 			}
 			else if (str.substring(1, 2).equals("1")) {
 				LOGGER.info(time + "s: MPU6050 Ready");
