@@ -336,7 +336,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		leftPanel.setLayout(new GridBagLayout());
 		// Minimum width is required to ensure that left panel displays properly.
 		// If frame isn't big enough, take space away from right Panel
-		int minWidth = 650;
+		int minWidth = 400;
 		leftPanel.setMinimumSize(new Dimension(minWidth, 700));
 		GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
 		int preferredWidth = gd.getDisplayMode().getWidth()/2;  //half of screen width
@@ -361,7 +361,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		// servoButtonPanel
 		JPanel servoPanel = initializeServoButtonPanel();
 		servoPanel.setMinimumSize(new Dimension(minWidth, 100));
-		servoPanel.setPreferredSize(new Dimension(650, 100));
+		servoPanel.setPreferredSize(new Dimension(650, 150));
 		c.gridx = 0;
 		c.gridy = 2;
 		c.gridwidth = 1;
