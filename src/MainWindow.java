@@ -11,10 +11,12 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.PrintStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -82,6 +84,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	Timer threadTimer;
 	
 	// Menu Bar Variables
+	private JMenuBar menuBar;
 	private JMenu menu, gpsSubmenu, commSubmenu;
 	
 	//logging variables
@@ -287,17 +290,18 @@ public class MainWindow extends JPanel implements PacketListener {
 	}
 	
 	public JMenuBar createMenuBar() {
-		JMenuBar menuBar;
-
         //Create the menu bar.
         menuBar = new JMenuBar();
- 
+        menuBar.setForeground(Color.RED);// Red until we send GPS coords
         //Build the first menu.
         menu = new JMenu("Setup");
         menuBar.add(menu);
  
         // GPS Submenu
         gpsSubmenu = new JMenu("GPS Target");
+        gpsSubmenu.setForeground(Color.red);
+        
+        
         JMenuItem menuItem = new JMenuItem("Update GPS Target");
         menuItem.addActionListener(new ActionListener() {	
         public void actionPerformed(ActionEvent e) {
@@ -307,6 +311,30 @@ public class MainWindow extends JPanel implements PacketListener {
         	}
         });
         gpsSubmenu.add(menuItem);
+        
+        menuItem = new JMenuItem("Send Target to Plane");
+        menuItem.setForeground(Color.RED);
+        menuItem.addActionListener(new ActionListener() {
+        	public void actionPerformed(ActionEvent e) {
+        		//Message format: tXXXX%YYYYe
+        		// XXXX-> latitude (DDM)
+        		// YYYY-> longitude (DDM)
+        		byte[] targetMessage = new byte[19];// start byte + 8-byte latitude + separator byte + 8-byte longitude + End byte = (2*8) + 3 = 19 bytes
+        		targetMessage[0] = 't';
+        		byte[] lat = doubleToBytes(targeter.getTargetLattDDM());
+        		byte[] lon = doubleToBytes(targeter.getTargetLongDDM());
+        		for(int i = 0; i < 8; i++)
+        			targetMessage[i + 1] = lat[i];
+        		targetMessage[9] = '%';
+        		for(int i = 0; i < 8; i++)
+        			targetMessage[i + 10] = lon[i];
+        		targetMessage[18] = 'e';
+        		serialComm.write(targetMessage);
+        		LOGGER.info("Sent target latitude and longitude to plane.");
+        	}
+        });
+        gpsSubmenu.add(menuItem);
+        
  
         // Comm Submenu
         commSubmenu = new JMenu("Comm. Port");
@@ -655,67 +683,55 @@ public class MainWindow extends JPanel implements PacketListener {
 			else if(index >= battP.length)
 				index = battP.length - 1;
 			LOGGER.info("Battery Voltage = " + Math.round(100*batteryV)/100.0 + " V, Battery Percentage = " + battP[(int)index] + " %");  //print result to console
-			
 		}
 		//REMAINING ARE ACKNOWLEGEMENT MESSAGES
-		else if(str.length() == ACKNOWLEDGE_PACKET_L)
-		{	
+		else if(str.length() == ACKNOWLEDGE_PACKET_L) {	
 			if (str.substring(1, 2).equals("s")) {
 				LOGGER.info(time + "s: Communicator Initialized Successfully");
-			}
-			else if (str.substring(1, 2).equals("k")) {
+			} else if (str.substring(1, 2).equals("k")) {
 				LOGGER.info(time + "s: Reset Acknowledge");
-			}
-			else if (str.substring(1, 2).equals("r")) {
+			} else if (str.substring(1, 2).equals("r")) {
 				LOGGER.info(time + "s: Plane Ready");
-			}
-			else if (str.substring(1, 2).equals("q")) {
+			} else if (str.substring(1, 2).equals("q")) {
 				LOGGER.info(time + "s: Restart Acknowledge");
-			}
-			else if (str.substring(1, 2).equals("x")) {
+			} else if (str.substring(1, 2).equals("x")) {
 				LOGGER.info(time + "s: Camera Reset Acknowledge");
-			}
-			else if (str.substring(1, 2).equals("e")) {
+			} else if (str.substring(1, 2).equals("e")) {
 				LOGGER.info(time + "s: Error");
-			}
-			else if (str.substring(1, 2).equals("y")) {
+			} else if (str.substring(1, 2).equals("y")) {
 				LOGGER.info(time + "s: Drop Acknowledge");
 				speechManager.reportNewMessage("Drop acknowledge.");
-			}
-			else if (str.substring(1, 2).equals("b")) {
+			} else if (str.substring(1, 2).equals("b")) {
 				LOGGER.info(time + "s: Auto Drop ON confirmation.");
 				targeter.setAutoDropEnabled(true);
 				speechManager.reportNewMessage("Auto-Drop enabled confirmation.");
-			}
-			else if (str.substring(1, 2).equals("d")) {
+			} else if (str.substring(1, 2).equals("d")) {
 				LOGGER.info(time + "s: Auto Drop OFF confirmation.");
 				targeter.setAutoDropEnabled(false);
 				speechManager.reportNewMessage("Auto-Drop disabled confirmation.");
-			}
-			else if (str.substring(1, 2).equals("o")) {
+			} else if (str.substring(1, 2).equals("o")) {
 				LOGGER.info(time + "s: Open Drop Bay Acknowledge");
 				speechManager.reportNewMessage("Open Drop Bay Acknowledge.");
-			}
-			else if(str.substring(1, 2).equals("c")) {
+			} else if(str.substring(1, 2).equals("c")) {
 				LOGGER.info(time + "s: Drop Bay Closing (either auto or commanded)");
 				speechManager.reportNewMessage("Drop Bay Closing.");
-			}
-			else if (str.substring(1, 2).equals("1")) {
+			} else if (str.substring(1, 2).equals("1")) {
 				LOGGER.info(time + "s: MPU6050 Ready");
-			}
-			else if (str.substring(1, 2).equals("2")) {
+			} else if (str.substring(1, 2).equals("2")) {
 				LOGGER.info(time + "s: MPU6050 Failed");
-			}
-			else if (str.substring(1, 2).equals("3")) {
+			} else if (str.substring(1, 2).equals("3")) {
 				LOGGER.info(time + "s: DMP Ready");
-			}
-			else if (str.substring(1, 2).equals("4")) {
+			} else if (str.substring(1, 2).equals("4")) {
 				LOGGER.info(time + "s: DMP Failed");
-			}
-			else if (str.substring(1, 2).equals("5")) {
+			} else if (str.substring(1, 2).equals("5")) {
 				LOGGER.info(time + "s: MPU6050 Initializing");
-			}
-			else {
+			} else if (str.substring(1, 2).equals("g")) {
+				LOGGER.info(time + "s: GPS Target Received");
+				// Set text back to black to remove red warning colour
+				menuBar.setForeground(Color.BLACK);
+				gpsSubmenu.setForeground(Color.BLACK);
+				gpsSubmenu.getItem(1).setForeground(Color.BLACK);
+			} else {
 				LOGGER.warning(time + "s: Unknown Message Character of '" + str.substring(1, 2) + "'");
 			}
 			
@@ -730,6 +746,12 @@ public class MainWindow extends JPanel implements PacketListener {
 			}
 			invalidPacketReceived(msg.toString());			
 		}
+	}
+	
+	public static byte[] doubleToBytes(double value) {
+	    byte[] bytes = new byte[8];
+	    ByteBuffer.wrap(bytes).putDouble(value);
+	    return bytes;
 	}
 	
 	double extractFloat(byte byte1, byte byte2, byte byte3, byte byte4)  //byte 1 is lowermost byte

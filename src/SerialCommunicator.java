@@ -179,8 +179,6 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     	 */
     	
     	int resp = 0;
-			
-    	
     	
     	//Enter command mode
     	if((resp = sendCmdAndWaitForOK(COMMAND_MODE_CMD, INTO_CMD_MODE_TIMEOUT)) == CMD_FAILED)
@@ -453,4 +451,16 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
     		e.printStackTrace();
     	}
     }
+    
+    // Send byte array
+    public void write(byte[] b) {
+    	try {
+    		output.write(b);
+    		output.flush();
+    	} catch(Exception e) {
+    		LOGGER.warning("Byte write failed.");
+    		e.printStackTrace();
+    	}
+    }
+    
 }
