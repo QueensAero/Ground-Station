@@ -12,7 +12,6 @@ public class GPSPos {
 	
 	private double heading; // In degrees (E = 0, N = 90, W = 180, S = 270)
 	private double mathAngle;  //in polar coordinates
-	private int second, milliSecond;  //timestamp (only need when this class is used to hold base point recieved from GPS)
 	private long systemTime;
 	
 	private int utmZone;
@@ -23,13 +22,11 @@ public class GPSPos {
 	/*
 	 * Constructor that accepts position as latitude and longitude (in degrees).
 	 */
-	public GPSPos(double latDDM, double lonDDM, double velocityMPS, double altitudeM, double direction, int sec, int ms)
+	public GPSPos(double latDDM, double lonDDM, double velocityMPS, double altitudeM, double direction)
 	{
 		this.systemTime = System.currentTimeMillis();
 		this.velocityMPS = velocityMPS;
 		this.altitudeM = altitudeM;
-		this.second = sec;
-		this.milliSecond = ms;
 		this.heading = direction;  //This is in degrees, with 0 = N, 90 = E
 		mathAngle = heading2MathAngle(direction);
 		convertDeg2UTM(decimalDegMin2Degree(latDDM), decimalDegMin2Degree(lonDDM)); // Updates all utm attributes
@@ -42,7 +39,7 @@ public class GPSPos {
 	/*
 	 * Constructor that accepts position as UTM coordinates.
 	 */
-	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocityMPS, double altitudeM, double direction, int sec, int ms)
+	public GPSPos(int utmZone, char utmLetter, double utmNorthing, double utmEasting, double velocityMPS, double altitudeM, double direction)
 	{
 		this.systemTime = System.currentTimeMillis();
 		this.velocityMPS = velocityMPS;
@@ -54,8 +51,6 @@ public class GPSPos {
 		this.utmLetter = utmLetter;
 		this.utmNorthing = utmNorthing;
 		this.utmEasting = utmEasting;
-		this.second = sec;
-		this.milliSecond = ms;
 		
 		//System.out.println("Utm Zone, Letter, N, E: " + utmZone + ", " + utmLetter + ", " + utmNorthing + ", " + utmEasting);
 		
@@ -73,8 +68,6 @@ public class GPSPos {
 	public double getUTMNorthing() { return utmNorthing; }
 	public int getUTMZone() { return utmZone; }
 	public char getUTMLetter(){  return utmLetter;  }
-	public int getSecond() {  return second;  }
-	public int getMilliSecond() {  return milliSecond;  }
 	public long getSystemTime() { return systemTime; }
 	
 	double heading2MathAngle(double heading)

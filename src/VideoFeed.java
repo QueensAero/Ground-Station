@@ -76,8 +76,8 @@ public class VideoFeed extends JPanel{
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
-	private int rows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
-	//private int rows = 576, rows = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
+	//private int rows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private int rows = 525, cols = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
 	
 	//note: there are ~1000 vertical pixels to work with.  This takes up 150+576 = 776, leaving ~250 for other stuff
 	

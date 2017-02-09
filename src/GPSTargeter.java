@@ -28,18 +28,28 @@ public class GPSTargeter {
 	private GPSPos curPos;
 	private GPSPos targetPos;
 	
-	// Calculated values:
-	private double latError;
-	private double timeToDrop;
 	
 	private SpeechManager speechManager;
+	
+	
+	//Values from each step. All values in meters or seconds
+    double 	lateralError, //1. 
+    		directDistanceToTarget, //2.
+    		distAlongPathToMinLateralErr, //3.
+    		horizDistance, //4.
+    		distFromEstDropPosToTarget, //5.
+    		estDropEasting,
+    		estDropNorthing,
+    		timeTillDrop;  //6.
+	
 	
 	
 	public GPSTargeter(GPSPos target) {
 		curPos = null;
 		targetPos = target;
-		latError = -1;
-		timeToDrop = -1;
+		lateralError = timeTillDrop = directDistanceToTarget = distAlongPathToMinLateralErr = horizDistance = distFromEstDropPosToTarget = -1;
+		estDropEasting =  estDropNorthing = timeTillDrop;
+
 		speechManager = SpeechManager.getInstance();
 		speechManager.reportTime(12);
 		speechManager.reportTime(9.7);
@@ -48,11 +58,7 @@ public class GPSTargeter {
 	
 	public void setTargetPos(GPSPos target) {
 		targetPos = target;
-		if(curPos != null && targetPos != null) { // If valid input, carry out calculations
-			// Order matters:
-			latError = computeLateralErr();
-			timeToDrop = timeToDrop();
-		}
+		update();
 	}
 	
 	/*
@@ -60,18 +66,35 @@ public class GPSTargeter {
 	 */
 	public void updateCurPos(GPSPos pos) {
 		curPos = pos; // Don't worry, GPSPos is immutable
-		if(curPos != null && targetPos != null) { // If valid input, carry out calculations
-			// Order matters:
-			latError = computeLateralErr();
-			timeToDrop = timeToDrop();
-			speechManager.reportTime(timeToDrop);
-			speechManager.reportAltitude(curPos.getAltitudeFt());  //FEET
-		}
+		update();
 	}
 	
-	public double getLateralError() { return latError; }
-	public double getTimeToDrop() { return timeToDrop; }
-	public double getDropDistance() { return dropDistance();  }  //assumes updateCurPos has already been called
+	public void update()
+	{	
+		
+		if(curPos != null && targetPos != null) { // If valid input, carry out calculations
+
+			// Order matters:
+			calculateLateralError();
+			calculateDirectDistanceToTarget();
+			calculateDistAlongPathToMinLateralErr();
+			calculateHorizDistance(); 
+			calculateTimeTillDrop();
+			calculateDistFromEstDropPosToTarget();
+			
+			speechManager.reportTime(timeTillDrop);
+			speechManager.reportAltitude(curPos.getAltitudeFt());  //FEET
+		}
+		
+		
+	}
+	
+	public double getLateralError() { return lateralError; }
+	public double getTimeToDrop() { return timeTillDrop; }
+	public double getEstDropEasting() { return estDropEasting; }
+	public double getEstDropNorthing() { return estDropNorthing; }
+
+	//public double getDropDistance() { return dropDistance();  }  //assumes updateCurPos has already been called
 	
 	/* 
 	 * Step '1.' in class description:
@@ -79,7 +102,7 @@ public class GPSTargeter {
 	 * Computes shortest distance from the line defined by the plane's path
 	 * to the location of the target.
 	 */
-	private double computeLateralErr() {
+	private void calculateLateralError() {
 		// See "Line defined by two points" at 
 		// https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
 		// From the wikipedia equation:
@@ -112,7 +135,7 @@ public class GPSTargeter {
 		denom += Math.pow(x2 - x1, 2.0);
 		denom = Math.sqrt(denom);
 		
-		return num / denom;
+		lateralError =  num / denom;
 	}
 	
 	/*
@@ -120,34 +143,29 @@ public class GPSTargeter {
 	 * 
 	 * Calculates direct distance from current position to the target.
 	 */
-	private double directDistToTarget() {
-		double dist = 0;
+	private void calculateDirectDistanceToTarget() {
+		
 		// Use pythagorean theorem to calculate distance between curPos and targetPos:
-		dist = Math.sqrt(Math.pow((targetPos.getUTMEasting() - curPos.getUTMEasting()), 2) + 
+		directDistanceToTarget = Math.sqrt(Math.pow((targetPos.getUTMEasting() - curPos.getUTMEasting()), 2) + 
 				Math.pow((targetPos.getUTMNorthing() - curPos.getUTMNorthing()), 2));
-		return dist;
 	}
 	
 	/*
 	 * Step '3.' in class description
 	 * 
 	 * Calculates distance along current path until nearest point to target.
-	 *
-	 *	Note: Relies on the fact that an accurate lateral error has already been calculated
+	 * Note: Relies on the fact that an accurate lateral error has already been calculated
 	 */
-	private double pathDistToTarget() {
-		double dist = 0;
-		dist = Math.sqrt(Math.pow(directDistToTarget(), 2) - Math.pow(latError, 2));		
-		//System.out.print("Distance to target along path: ");
-		//System.out.println(dist);
-		return dist;
+	private void calculateDistAlongPathToMinLateralErr() {
+		distAlongPathToMinLateralErr = Math.sqrt(Math.pow(directDistanceToTarget, 2) - Math.pow(lateralError, 2));		
 	}
+	
 	
 	/*
 	 * Step '4.' in class description
 	 * 
 	 * Calculates how early (distance in m before being above the target) the
-	 * package must be dropped based on current speed and altitude.
+	 * package must be dropped based on current speed, delay receving data, time since received data, delay sending command and altitude.
 	 * 
 	 * *** Note: right now this is ignores air resistance and is very unrealistic.
 	 * Some thoughts on air resistance: terminal falling velocity 35-45 m/s ish, which would be reached at 4.1s or 82m / 270ft
@@ -158,38 +176,75 @@ public class GPSTargeter {
 	 *  Overall approximation of 0.9 correction factor
 	 *  See MATLAB script for more details
 	 */
-	private final double CORRECTION_FACTOR = 0.9;
+	private final double CORRECTION_FACTOR = 0.9,
+						 SERVO_OPEN_DELAY = 250,  //ms
+						 RX_TRANSMISSION_DELAY = 250,
+						 TX_TRANSMISSION_DELAY = 250;
 	
-	private double dropDistance() {
-		double fallTime = 0;
-		double horizDist = 0;
+	private void calculateHorizDistance() {
 		// targetPos.getAltitude() will probably be 0, but I included it just in case:
-		//double heightm = (curPos.getAltitude() - targetPos.getAltitude())  / 3.28084; // convert feet to meters
 		double heightm = (curPos.getAltitudeM() - targetPos.getAltitudeM()); // Altitudes are already in m
 		// Calculate time for payload to fall:
 		if(heightm < 0)
+		{
 			heightm = 0;  //prevent NaN from sqrt
+		}
 		
-		fallTime = Math.sqrt(2 * heightm / 9.807); // time in seconds
+		double fallTime = Math.sqrt(2 * heightm / 9.807); // time in seconds
 		
 		
 				
 		// Calculate horizontal distance that payload will travel in this time:
-		horizDist = curPos.getVelocityMPS() * fallTime*CORRECTION_FACTOR;
-		return horizDist;
+		double distanceDuringFall = curPos.getVelocityMPS() * fallTime * CORRECTION_FACTOR;
+	    double distanceFromDataAge = curPos.getVelocityMPS()*(System.currentTimeMillis() - curPos.getSystemTime())/1000.0;
+		double distanceFromLatencies = curPos.getVelocityMPS()*(SERVO_OPEN_DELAY + RX_TRANSMISSION_DELAY + TX_TRANSMISSION_DELAY)/1000.0;
+		horizDistance = distanceDuringFall + distanceFromDataAge + distanceFromLatencies;
 	}
 	
 	/*
-	 * Step '5.' in class description:
+	  Step 5
+	  Calculate where we end up in relation to target 
+	 */
+	 
+	 private void calculateDistFromEstDropPosToTarget() {
+
+	  estDropEasting = curPos.getUTMEasting() + Math.cos(curPos.getMathAngle() / 180 * Math.PI) * horizDistance;
+	  estDropNorthing = curPos.getUTMNorthing() + Math.sin(curPos.getMathAngle() / 180 * Math.PI) * horizDistance;
+
+	  distFromEstDropPosToTarget = Math.sqrt(Math.pow(targetPos.getUTMNorthing() - estDropNorthing, 2) + Math.pow(targetPos.getUTMEasting() - estDropEasting, 2));
+
+	}
+	
+	/*
+	 * Step '6.' in class description:
 	 * 
 	 * Calculates time until optimal drop location.
 	 */
-	private double timeToDrop() {
-		double distRemaining = 0;
-		double time;
-		distRemaining = pathDistToTarget() - dropDistance();
-		// t = d/v
-		time = distRemaining / curPos.getVelocityMPS();
-		return time;
+	private void calculateTimeTillDrop() {
+		
+		  //Special Case: Plane is 'before' target, and est drop position is 'after' target.
+		  //Test: If drop easting and current easting are on opposite sides of the target easting (and same for nothing) 
+		  //This is the first if (which is used to prevent this scenario from triggering 'Moving away from target'
+		  double tEast = targetPos.getUTMEasting();
+		  double tNorth = targetPos.getUTMNorthing();
+		  double cEast = curPos.getUTMEasting();
+		  double cNorth = curPos.getUTMNorthing();
+		
+		    if(   estDropEasting > tEast && cEast < tEast      ||    estDropEasting < tEast && cEast > tEast || //Compare easting
+		          estDropNorthing > tNorth && cNorth < tNorth  ||    estDropNorthing < tNorth && cNorth > tNorth) //Compare northing
+		    {
+		      //This actually works properly. distAlongPathToMinLateralErr is positive, and horizontal distance  should be subtracted
+		      timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();
+		    }
+		    //Moving away from target
+		    else if(distFromEstDropPosToTarget > directDistanceToTarget)
+		    {
+		        timeTillDrop = (-distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();   //now distAlongPathToMinLateralErr is a negative
+		    }
+		    else
+		    {
+		        timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();
+		    }
+
 	}
 }

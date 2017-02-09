@@ -104,15 +104,14 @@ public class MainWindow extends JPanel implements PacketListener {
 	}
 	
 	private void logData() {
-		LocalDateTime now = LocalDateTime.now();
-		//Log format: "T_sinceStart,data_time,real_time,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+
+		//Log format: "T_sinceStart,data_age,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
 		GPSPos basePos = targeter.getbaseGPSPos();  //This is last received GPS point (NOT projected forward based on delay)
 		GPSPos targetPos = targeter.getTargetPos();  //This is last received GPS point (NOT projected forward based on delay)
 
 		
-		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + (targeter.baseGPSposition.getSecond() + targeter.baseGPSposition.getMilliSecond()/1000.0) + ","  + now.getHour() 
-					+ "." + now.getMinute() +"."+ (now.getSecond() + now.get(ChronoField.MILLI_OF_SECOND)/1000.0) +","+ videoFeed.currentRecordingFN +","+ String.format("%.2f", videoFeed.frameRate) 
-					+ "," + String.format("%.4f",basePos.getVelocityMPS()) + "," 
+		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + Long.toString(targeter.getDataAge()) + ","  + ","+ videoFeed.currentRecordingFN +","+ 
+					String.format("%.2f", videoFeed.frameRate) 	+ "," + String.format("%.4f",basePos.getVelocityMPS()) + "," 
 					+ String.format("%.4f",basePos.getAltitudeFt()) + "," + String.format("%.4f",basePos.getUTMEasting()) + ","	+ String.format("%.4f",basePos.getUTMNorthing()) + "," 
 					+ String.format("%.3f",basePos.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
@@ -282,9 +281,24 @@ public class MainWindow extends JPanel implements PacketListener {
 	private void dropPackage() {
 		serialComm.write('o');  //send drop command to arduino
 		LOGGER.info("Drop package sent.");
+		//Wait until acknowledge to update
+		
+	}
+	
+	
+	private void packageDropAcknowledge()
+	{
 		double time = (System.currentTimeMillis() - connectTime) / 1000.0;
 		System.out.println(time + "s: Package dropped at: "+lblAlt.getText() + " ft");
 		lblAltAtDrop.setText(lblAlt.getText());
+		videoFeed.changeDropStatus(true);	
+		targeter.setDropStatus(true);
+	}
+	
+	//Call after requested the altitude at drop from plane
+	private void updateDropDetails(double altAtDrop)
+	{
+		lblAltAtDrop.setText(String.format("%0.2f", altAtDrop));
 		videoFeed.changeDropStatus(true);	
 		targeter.setDropStatus(true);
 	}
@@ -664,6 +678,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			//Extract the float of the altitude
 			double altitudeAtDrop = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
 			LOGGER.info("Altitude at drop = " + altitudeAtDrop);  //print result to console
+			updateDropDetails(altitudeAtDrop);
 
 		}
 		//BATTERY LEVEL
@@ -712,6 +727,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			} else if (str.substring(1, 2).equals("o")) {
 				LOGGER.info(time + "s: Open Drop Bay Acknowledge");
 				speechManager.reportNewMessage("Open Drop Bay Acknowledge.");
+				packageDropAcknowledge();  //updates details of drop in GUI
 			} else if(str.substring(1, 2).equals("c")) {
 				LOGGER.info(time + "s: Drop Bay Closing (either auto or commanded)");
 				speechManager.reportNewMessage("Drop Bay Closing.");
