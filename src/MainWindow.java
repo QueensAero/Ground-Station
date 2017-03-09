@@ -329,6 +329,7 @@ public class MainWindow extends JPanel implements PacketListener {
         		for(int i = 0; i < 8; i++)
         			targetMessage[i + 10] = lon[i];
         		targetMessage[18] = 'e';
+        		
         		serialComm.write(targetMessage);
         		LOGGER.info("Sent target latitude and longitude to plane.");
         	}
@@ -750,7 +751,13 @@ public class MainWindow extends JPanel implements PacketListener {
 	
 	public static byte[] doubleToBytes(double value) {
 	    byte[] bytes = new byte[8];
-	    ByteBuffer.wrap(bytes).putDouble(value);
+	    
+	    // If you are having issues with this then make sure that you consider Endianness!!!!!!!!!
+	    long lng = Double.doubleToLongBits(value);
+	    for(int i = 0; i < 8; i++) 
+	    	bytes[i] = (byte)((lng >> ((i) * 8)) & 0xff);
+	    
+	    //ByteBuffer.wrap(bytes).putDouble(value);
 	    return bytes;
 	}
 	
