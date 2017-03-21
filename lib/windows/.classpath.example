@@ -21,5 +21,7 @@
         <classpathentry kind="lib" path="lib/windows/TTS/freetts-jsapi10.jar"/>
         <classpathentry kind="lib" path="lib/windows/TTS/freetts.jar"/>
         <classpathentry kind="lib" path="lib/windows/TTS/jsapi.jar"/>
+	<classpathentry kind="lib" path="lib/windows/jcodec-0.1.9.jar"/>
+        <classpathentry kind="lib" path="lib/windows/jcodec-javase-0.1.9.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
