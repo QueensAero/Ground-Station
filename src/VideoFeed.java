@@ -1,17 +1,12 @@
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.FontFormatException;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
@@ -19,7 +14,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.time.temporal.ChronoField;
 import java.util.Date;
 import java.util.TimeZone;
 import java.util.logging.Logger;
@@ -35,19 +29,9 @@ import javax.swing.Timer;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Core;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
 import org.opencv.highgui.VideoCapture;
 import org.opencv.highgui.Highgui;
-import org.opencv.imgproc.Imgproc;
-
 import java.lang.Math;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-
 
 /*Notes:  
  * This uses OpenCV libaray to handle the streaming from the Analog to USB device.  The OpenCV dependance is as minimal as posisbe
@@ -77,7 +61,7 @@ public class VideoFeed extends JPanel{
 	
 	//image size variables (1st = webcam) (2nd = analog 2 usb)
 	//private int rows = 480, cols = 640, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
-	private int rows = 525, cols = 720, videoSource = 1;  //rows, columns in frame from camera, rows, columns in flight display panel
+	private int rows = 525, cols = 720, videoSource = 0;  //rows, columns in frame from camera, rows, columns in flight display panel
 	
 	//note: there are ~1000 vertical pixels to work with.  This takes up 150+576 = 776, leaving ~250 for other stuff
 	
@@ -107,10 +91,10 @@ public class VideoFeed extends JPanel{
 	public int currentRecordingFN = 0;
 	public double frameRate = 0;
 	
-	
-	
 	private ImageWriter jpgWriter;
 	private ImageWriteParam jpgWriteParam;
+	
+	private VideoEncoder enc;
 	
 	//Constructor
 	public VideoFeed() {
@@ -129,7 +113,6 @@ public class VideoFeed extends JPanel{
 		jpgWriteParam = jpgWriter.getDefaultWriteParam();
 		jpgWriteParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
 		jpgWriteParam.setCompressionQuality(0.8f);
-		
 		
 		//set the size of the painting space
 		Dimension size = new Dimension(cols, rows); 
@@ -356,16 +339,10 @@ public class VideoFeed extends JPanel{
     		//can change wher you want to save to
     		//File outputfile = new File("C:" + File.separator + "Users" + File.separator + "Ryan"+ File.separator + "Documents" + File.separator + "Current Files" + File.separator +
 			//			"Aero" + File.separator + "Images" + File.separator + startDate + "_" + currentRecordingFN + ".jpg");
-    		
-    		new File("VideoFrames").mkdirs();
+    	
+    		/*new File("VideoFrames").mkdirs();
     		File outputfile = new File("VideoFrames" + File.separator + startDate + "_" + currentRecordingFN + ".jpg");
-			
-    		/* This way is simpler but doesn't give quality options:  
-			try {
-				ImageIO.write((RenderedImage) img, "jpg", outputfile);
-			} catch (IOException e1) { System.out.println("Error Saving");}
-			 */
-			//http://stackoverflow.com/questions/17108234/setting-jpg-compression-level-with-imageio-in-java			
+					
 
 			ImageOutputStream outputStream;
 			try {
@@ -379,12 +356,20 @@ public class VideoFeed extends JPanel{
 			} 
 			
 			IIOImage outputImage = new IIOImage((BufferedImage)img, null, null);
-			
+			*/
+			try {
+				enc.encodeImage(img);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			/*
 			try {
 				jpgWriter.write(null, outputImage, jpgWriteParam);
 			} catch (IOException e) {
 				LOGGER.warning("Failed to save image");
 			}
+			*/
     }
     
 
@@ -394,10 +379,22 @@ public class VideoFeed extends JPanel{
 		if(cap.isOpened()) {
 			if(!recordingVideo) {  //start recording
 				recordingVideo = true;	currentRecordingFN = 1;  //reset
+				try {
+					enc = new VideoEncoder();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				LOGGER.info("Recording Set to ON");
 				
 			} else { //stop recording video
 				recordingVideo = false;
+				try {
+					enc.finish();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				LOGGER.info("Recording Set to OFF");
 			}
 		} else {

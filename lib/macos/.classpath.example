@@ -21,5 +21,7 @@
 	<classpathentry kind="lib" path="lib/macos/TTS/freetts-jsapi10.jar"/>
 	<classpathentry kind="lib" path="lib/macos/TTS/freetts.jar"/>
 	<classpathentry kind="lib" path="lib/macos/TTS/jsapi.jar"/>
+	<classpathentry kind="lib" path="lib/macos/jcodec-0.1.9.jar"/>
+        <classpathentry kind="lib" path="lib/macos/jcodec-javase-0.1.9.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -2,5 +2,6 @@
 .classpath
 *.log
 *.jpg
+*.mp4
 /logs/*
 /VideoFrames/*
