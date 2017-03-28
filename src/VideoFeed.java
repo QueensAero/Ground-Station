@@ -84,7 +84,6 @@ public class VideoFeed extends JPanel{
 	//state variables (containing information about current state of plane)
 	public double airSpdMps = 7, altitudeFt = 8; 
 	public double lattitudeDDM, longitudeDDM;
-	public int  second, millisec;
 	public boolean isDropped = false;  
 	public double altAtDropFt = 0, heading = 270; //whether the payload has been dropped
 	private boolean recordingVideo = false; boolean streamActive = false;
@@ -405,16 +404,14 @@ public class VideoFeed extends JPanel{
 	public boolean getRecordStatus() {  return recordingVideo;  }
 	
 	//if too many values, might want to send as enum/struct type? does java have that
-	public void updateValues(double altitudeFt, double airspeedMps, double lattDDM, double longitDDM, double head, int sec, int ms)  //add more as necessary (ie. GPS).
+	public void updateValues(double altitudeFt, double airspeedMps, double lattDDM, double longitDDM, double head)  //add more as necessary (ie. GPS).
 	{
 		this.airSpdMps = airspeedMps;
 		this.altitudeFt = altitudeFt;
 		this.lattitudeDDM = lattDDM;
 		this.longitudeDDM = longitDDM;
 		this.heading = head;
-		this.second = sec;
-		this.millisec = ms;
-		
+	
 		
 	}
 	

@@ -43,14 +43,14 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	final static int BAUD_RATE = 115200;  
 	final static int START_CHAR = 42;
 	final static int END_CHAR = 101;
-	final static int DATA_PACKET_L = 27;  //NOTE -> if changes, must also update in MainWindow
+	final static int DATA_PACKET_L = 33;  //was 27 before changes
 
 
 
 	
 	private StringBuffer received = new StringBuffer();
-	private byte[] receivedBytes = new byte[200];
-	private byte[] receivedPacket = new byte[200];
+	private byte[] receivedBytes = new byte[800];
+	private byte[] receivedPacket = new byte[800];
 	private int byteInd = 0, packetStartInd = -1, packetEndInd = -1;
 	
 	//constructor

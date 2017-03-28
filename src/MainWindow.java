@@ -116,7 +116,7 @@ public class MainWindow extends JPanel implements PacketListener {
 					+ String.format("%.3f",basePos.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
 					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDropFt) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
-					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", targetPos.getUTMEasting()) 
+					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", targeter.HDOP) + "," + String.format("%.2f", targetPos.getUTMEasting()) 
 					+ "," + String.format("%.2f", targetPos.getUTMNorthing()) + "\n";
 		
 		LOGGER.finer(s); // Log to file only
@@ -618,8 +618,7 @@ public class MainWindow extends JPanel implements PacketListener {
 	//*pXXXXYYYYZZZZAAAABBBBsttee is the newer way -> no longer sending roll or pitch, 27 bytes long
 	//Ie. in order, it's alt, spd, lat, long, heading
 	
-	final static int DATA_PACKET_L = 27,  //NOTE -> if changes, must also update in SerialCommunicator
-					ALTATDROP_PACKET_L = 8,
+	final static int ALTATDROP_PACKET_L = 8,
 					BATT_LEVEL_PACKET_L = 8;
 	
 	final static int ACKNOWLEDGE_PACKET_L = 4;  //This is common to a bunch of 'acknowledge' type messages
@@ -633,26 +632,24 @@ public class MainWindow extends JPanel implements PacketListener {
 		int byteArrayInd = 2;  //The start of data is at index 2 (0th = '*',  1st = 'p' or 'a')
 			
 		//DATA PACKET
-		if(str.substring(1, 2).equals("p") && str.length() == DATA_PACKET_L){ //'p' indicates data packet
+		if(str.substring(1, 2).equals("p") && str.length() == SerialCommunicator.DATA_PACKET_L){ //'p' indicates data packet
 			
-			double [] dblArr = new double [5];
-			int [] timeArr = new int[2];  //S, MS
+			double [] dblArr = new double [7];
 			
-			for(int x = 0; x < 5; x++)  //extract 5 float values (which are cast to double)
+			for(int x = 0; x < dblArr.length; x++)  //extract 5 float values (which are cast to double)
 			{	
 				dblArr[x] = extractFloat(byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
 				
 				//rounding code
 				if(x != 2 && x != 3)  //round to 2 decimal places if not Latt & Long
 					dblArr[x] = Math.round(100*dblArr[x])/100.0;
-				else  //round to 4 decimal places (latt and long)
+				else  //round to 4 decimal places (latt and long - note this is the precision the GPS reports with, so no point going beyond)
 					dblArr[x] = Math.round(10000*dblArr[x])/10000.0;	
 			
 			}
 			
 			//extract time values
-			timeArr[1] = extractuInt16(byteArray[byteArrayInd++],byteArray[byteArrayInd++]);
-			timeArr[0] = extractuInt8(byteArray[byteArrayInd++]);  //seconds as uint8, since only need 0-60
+			int fixQuality = extractuInt8(byteArray[byteArrayInd++]);  //Fix Qual is uInt8, since 0-7 or so
 			
 			//Unit conversion things
 			dblArr[1] = Math.round(100*dblArr[1])/100.0;  //CONVERT from knots TO m/s, round to 2 decimal places
@@ -665,10 +662,10 @@ public class MainWindow extends JPanel implements PacketListener {
 			//UNITS - dblArr[0] is in FEET - both functions below expect altitude in feet. Altitude is logged in feet as well
 					
 			//Update data in VideoFeed Class 
-			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], timeArr[0], timeArr[1]);
+			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4]);
 						
 			//Send updated data to targeter
-			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], timeArr[0], timeArr[1]);
+			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5]);
 
 			logData(); // Log the new state each time new data is received 
 
