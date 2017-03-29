@@ -617,6 +617,8 @@ public class MainWindow extends JPanel implements PacketListener {
 	//with XXXX = four bytes which combined make a float, s = 1 byte making uint8_t, tt = 2 bytes making uint16_t, 
 	//*pXXXXYYYYZZZZAAAABBBBsttee is the newer way -> no longer sending roll or pitch, 27 bytes long
 	//Ie. in order, it's alt, spd, lat, long, heading
+	//Next new way:  *pXXXXYYYYZZZZAAAABBBBCCCCDDDDfee
+	//Ie. In order it's alt, spd, lat, long, heading, HDOP, msSinceLastValidHDOP, fix quality
 	
 	final static int ALTATDROP_PACKET_L = 8,
 					BATT_LEVEL_PACKET_L = 8;
@@ -648,8 +650,11 @@ public class MainWindow extends JPanel implements PacketListener {
 			
 			}
 			
+			
+			
 			//extract time values
 			int fixQuality = extractuInt8(byteArray[byteArrayInd++]);  //Fix Qual is uInt8, since 0-7 or so
+			//Need to use
 			
 			//Unit conversion things
 			dblArr[1] = Math.round(100*dblArr[1])/100.0;  //CONVERT from knots TO m/s, round to 2 decimal places
@@ -665,7 +670,7 @@ public class MainWindow extends JPanel implements PacketListener {
 			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4]);
 						
 			//Send updated data to targeter
-			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5]);
+			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], fixQuality);
 
 			logData(); // Log the new state each time new data is received 
 

@@ -35,7 +35,10 @@ public class Targeter extends JPanel {
 	//TODO - have size scale to current size allocated to targeter
 	
 	//curent GPS information
-	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitudeDDM = 0, longitudeDDM = 0, heading = 0, HDOP = 30;  //altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
+	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitudeDDM = 0, longitudeDDM = 0, heading = 0, 
+				HDOP = 30, msSinceLastValidHDOP = 10000, fixQuality = 0;  
+		
+	//altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
 	
 	//tracking variables:
 	public boolean payloadDropped = false;
@@ -342,7 +345,7 @@ public class Targeter extends JPanel {
 	public int getRows() {  return rows; }
 	public int getCols() {  return cols; }
 	
-	public void updateGPSData(double altitudeFt, double spd, double LatDDM, double LongDDM, double headng, double HDOP ){
+	public void updateGPSData(double altitudeFt, double spd, double LatDDM, double LongDDM, double headng, double HDOP, double msSinceLastValidHDOP, int fixQuality ){
 
 		this.altitudeFt = altitudeFt;
 		this.altitudeMetres = altitudeFt*FT_TO_METRES;
@@ -351,6 +354,9 @@ public class Targeter extends JPanel {
 		this.longitudeDDM = LongDDM;
 		this.heading = headng;
 		this.HDOP = HDOP;
+		this.msSinceLastValidHDOP = msSinceLastValidHDOP;
+		this.fixQuality = fixQuality;
+		
 				
 		baseGPSposition = new GPSPos(lattitudeDDM, longitudeDDM, speed, altitudeMetres,heading);
 		GSPTargeting.updateCurPos(baseGPSposition);				
