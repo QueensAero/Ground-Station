@@ -116,8 +116,9 @@ public class MainWindow extends JPanel implements PacketListener {
 					+ String.format("%.3f",basePos.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
 					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDropFt) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
-					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", targeter.HDOP) + "," + String.format("%.2f", targetPos.getUTMEasting()) 
-					+ "," + String.format("%.2f", targetPos.getUTMNorthing()) + "\n";
+					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", targeter.HDOP) + "," 
+					+ String.format("%.0f", targeter.msSinceLastValidHDOP) + ","  + Integer.toString(targeter.fixQuality) + ","  
+					+ String.format("%.2f", targetPos.getUTMEasting()) 	+ "," + String.format("%.2f", targetPos.getUTMNorthing()) + "\n";
 		
 		LOGGER.finer(s); // Log to file only
 	}
@@ -652,25 +653,32 @@ public class MainWindow extends JPanel implements PacketListener {
 			
 			
 			
-			//extract time values
 			int fixQuality = extractuInt8(byteArray[byteArrayInd++]);  //Fix Qual is uInt8, since 0-7 or so
-			//Need to use
 			
-			//Unit conversion things
-			dblArr[1] = Math.round(100*dblArr[1])/100.0;  //CONVERT from knots TO m/s, round to 2 decimal places
-			if(dblArr[3] > 0)  
-				dblArr[3]= -dblArr[3];	//We are always in western hemisphere, so longitude always is negative
+			//Setup variables from double array
+			double altFeet = dblArr[0];
+			double speedMPS = dblArr[1];  
+			double lattitudeDDM = dblArr[2];
+			double longitudeDDM = dblArr[3];
+			if(longitudeDDM > 0)
+			{
+				longitudeDDM = -longitudeDDM; //We are always in western hemisphere, so longitude always is negative
+			}
+			double heading = dblArr[4];
+			double HDOP = dblArr[5];
+			double msSinceLastValidHDOP = dblArr[6];
+
 			
 			//print altitude to status area (top left)
-			lblAlt.setText(""+dblArr[0]);				
+			lblAlt.setText(""+altFeet);				
 			
 			//UNITS - dblArr[0] is in FEET - both functions below expect altitude in feet. Altitude is logged in feet as well
 					
 			//Update data in VideoFeed Class 
-			videoFeed.updateValues(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4]);
+			videoFeed.updateValues(altFeet, speedMPS, lattitudeDDM, longitudeDDM, heading);
 						
 			//Send updated data to targeter
-			targeter.updateGPSData(dblArr[0], dblArr[1], dblArr[2], dblArr[3], dblArr[4], dblArr[5], dblArr[6], fixQuality);
+			targeter.updateGPSData(altFeet, speedMPS, lattitudeDDM, longitudeDDM, heading, HDOP, msSinceLastValidHDOP, fixQuality);
 
 			logData(); // Log the new state each time new data is received 
 

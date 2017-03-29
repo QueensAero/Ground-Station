@@ -36,7 +36,8 @@ public class Targeter extends JPanel {
 	
 	//curent GPS information
 	double altitudeFt = 0, altitudeMetres = 0, speed = 0, lattitudeDDM = 0, longitudeDDM = 0, heading = 0, 
-				HDOP = 30, msSinceLastValidHDOP = 10000, fixQuality = 0;  
+				HDOP = 30, msSinceLastValidHDOP = 10000;
+	int fixQuality = 0;  
 		
 	//altitude in ft, spd in m/s, heading in degress, GPS in XXYY.ZZZZ XX = degress, YY = minutes,  ZZZZ = decimal minutes
 	
