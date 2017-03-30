@@ -217,7 +217,11 @@ public class Targeter extends JPanel {
     		yTextMult = 1;
     	
     	textFrame.drawString("Pos: (" + String.format( "%.1f", estDropPosXMetres) + ", " + String.format( "%.1f", estDropPosYMetres) + ")", startTextX, yTextSpace*yTextMult++);
+    	if((dataAge/1000.0) > 3.0) { // If no new data has been received in 3.0 seconds
+    		textFrame.setColor(Color.RED);
+    	}
     	textFrame.drawString("Data Age: " + String.format( "%.2f",(dataAge/1000.0)) + " seconds", startTextX, yTextSpace*yTextMult++);
+    	textFrame.setColor(Color.BLACK);
     	
     	if(!payloadDropped)
     	{		   		
@@ -236,8 +240,22 @@ public class Targeter extends JPanel {
     		textFrame.drawString("Est Drop Pos: ("+ String.format( "%.1f", actEstDropPosXMeters) + ", " + String.format( "%.1f", actEstDropPosYMeters) + ")", startTextX, yTextSpace*yTextMult++);
     	
     	}
+    	textFrame.drawString("HDOP = " + HDOP, startTextX, yTextSpace*yTextMult++);
+    	if(fixQuality == 0) {
+    		textFrame.drawString("Fix Quality = " + fixQuality + " (No Fix)", startTextX, yTextSpace*yTextMult++);
+    	} else if (fixQuality == 1) {
+    		textFrame.drawString("Fix Quality = " + fixQuality + " (SPS Fix)", startTextX, yTextSpace*yTextMult++);
+    	} else if (fixQuality == 2) {
+    		textFrame.drawString("Fix Quality = " + fixQuality + " (DGPS Fix)", startTextX, yTextSpace*yTextMult++);
+    	} else {
+    		textFrame.drawString("Fix Quality = " + fixQuality, startTextX, yTextSpace*yTextMult++);
+    	}
     	
-				
+    	if(msSinceLastValidHDOP > 1500) {
+    		textFrame.setColor(Color.RED);
+    	}
+    	textFrame.drawString("Valid HDOP = " + msSinceLastValidHDOP + " ms", startTextX, yTextSpace*yTextMult++);
+		textFrame.setColor(Color.BLACK);		
 	}
 	
 	private void updateScale()
