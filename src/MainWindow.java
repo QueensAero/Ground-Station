@@ -92,6 +92,11 @@ public class MainWindow extends JPanel implements PacketListener {
 	String startDate;
 	long startTime = 0;
 	
+	
+	//Status Variables
+	double altFeet ,speedMPS, lattitudeDDM , longitudeDDM , heading , HDOP , msSinceLastValidHDOP , GPSAlt_M;
+	int fixQuality;
+	
 	//constructor
 	public MainWindow (SerialCommunicator sc, JFrame frame) {
 		serialComm = sc;
@@ -106,19 +111,20 @@ public class MainWindow extends JPanel implements PacketListener {
 	private void logData() {
 
 		//Log format: "T_sinceStart,data_age,RecFrame,FR,roll,pitch,speed,alt(ft),latt,long,heading,latErr,timeToDrop,EstDropPosX,EstDropPosY,isDropped?,altAtDrop,ExpectedDropX,ExpectedDropY\n";
+		//^ is slightly out of date
 		GPSPos basePos = targeter.getbaseGPSPos();  //This is last received GPS point (NOT projected forward based on delay)
 		GPSPos targetPos = targeter.getTargetPos();  //This is last received GPS point (NOT projected forward based on delay)
 
 		
 		String s = Long.toString(System.currentTimeMillis()-startTime) + "," + Long.toString(targeter.getDataAge()) + ","  + ","+ videoFeed.currentRecordingFN +","+ 
-					String.format("%.2f", videoFeed.frameRate) 	+ "," + String.format("%.4f",basePos.getVelocityMPS()) + "," 
-					+ String.format("%.4f",basePos.getAltitudeFt()) + "," + String.format("%.4f",basePos.getUTMEasting()) + ","	+ String.format("%.4f",basePos.getUTMNorthing()) + "," 
-					+ String.format("%.3f",basePos.getHeading()) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
+					String.format("%.2f", videoFeed.frameRate) 	+ "," + String.format("%.4f",speedMPS) + "," 
+					+ String.format("%.4f",altFeet) + "," + String.format("%.4f",basePos.getUTMEasting()) + ","	+ String.format("%.4f",basePos.getUTMNorthing()) + "," 
+					+ String.format("%.3f",heading) + "," + String.format("%.3f",targeter.lateralError) + "," + String.format("%.4f",targeter.timeToDrop)
 					+ "," + String.format( "%.1f",targeter.getEstDropPosXMetres())  + "," + String.format( "%.1f", targeter.getEstDropPosYMetres()) + "," 
 					+ videoFeed.isDropped + "," + String.format("%.1f", videoFeed.altAtDropFt) + "," +  String.format("%.4f",targeter.actEstDropPosXMeters()) + "," 
-					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", targeter.HDOP) + "," 
-					+ String.format("%.0f", targeter.msSinceLastValidHDOP) + ","  + Integer.toString(targeter.fixQuality) + ","  
-					+ String.format("%.2f", targetPos.getUTMEasting()) 	+ "," + String.format("%.2f", targetPos.getUTMNorthing()) + "\n";
+					+ String.format("%.4f",targeter.actEstDropPosYMeters()) + "," + String.format("%.2f", HDOP) + "," 
+					+ String.format("%.0f", msSinceLastValidHDOP) + ","  + Integer.toString(fixQuality) + ","  + String.format("%.2f", GPSAlt_M) +  "," 
+					+ String.format("%.2f", targetPos.getUTMEasting()) 	+ "," + String.format("%.2f", targetPos.getUTMNorthing())  + "\n";
 		
 		LOGGER.finer(s); // Log to file only
 	}
@@ -637,7 +643,7 @@ public class MainWindow extends JPanel implements PacketListener {
 		//DATA PACKET
 		if(str.substring(1, 2).equals("p") && str.length() == SerialCommunicator.DATA_PACKET_L){ //'p' indicates data packet
 			
-			double [] dblArr = new double [7];
+			double [] dblArr = new double [8];
 			
 			for(int x = 0; x < dblArr.length; x++)  //extract 5 float values (which are cast to double)
 			{	
@@ -653,20 +659,21 @@ public class MainWindow extends JPanel implements PacketListener {
 			
 			
 			
-			int fixQuality = extractuInt8(byteArray[byteArrayInd++]);  //Fix Qual is uInt8, since 0-7 or so
+			fixQuality = extractuInt8(byteArray[byteArrayInd++]);  //Fix Qual is uInt8, since 0-7 or so
 			
 			//Setup variables from double array
-			double altFeet = dblArr[0];
-			double speedMPS = dblArr[1];  
-			double lattitudeDDM = dblArr[2];
-			double longitudeDDM = dblArr[3];
+			altFeet = dblArr[0];
+			speedMPS = dblArr[1];  
+			lattitudeDDM = dblArr[2];
+			longitudeDDM = dblArr[3];
 			if(longitudeDDM > 0)
 			{
 				longitudeDDM = -longitudeDDM; //We are always in western hemisphere, so longitude always is negative
 			}
-			double heading = dblArr[4];
-			double HDOP = dblArr[5];
-			double msSinceLastValidHDOP = dblArr[6];
+			heading = dblArr[4];
+			HDOP = dblArr[5];
+			msSinceLastValidHDOP = dblArr[6];
+			GPSAlt_M = dblArr[7];
 
 			
 			//print altitude to status area (top left)

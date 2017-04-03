@@ -43,7 +43,7 @@ public class SerialCommunicator implements SerialPortEventListener, PacketListen
 	final static int BAUD_RATE = 115200;  
 	final static int START_CHAR = 42;
 	final static int END_CHAR = 101;
-	final static int DATA_PACKET_L = 33;  //was 27 before changes
+	final static int DATA_PACKET_L = 37;  //was 27 before changes
 
 
 

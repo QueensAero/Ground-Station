@@ -14,7 +14,8 @@ import java.util.logging.Logger;
  * 		the distance calculated in '2.', and distance calculated in '1.'.
  * 	4. Determine how early package must be dropped (distance) based on current altitude
  * 		and speed.
- * 	5. Calculate the time until the optimal drop time based on the current speed and the
+ *  5. Calculate estimated drop position and it's distance to the target
+ * 	6. Calculate the time until the optimal drop time based on the current speed and the
  * 		distance from '4.'.
  * 
  *  
@@ -53,7 +54,6 @@ public class GPSTargeter {
 		speechManager = SpeechManager.getInstance();
 		speechManager.reportTime(12);
 		speechManager.reportTime(9.7);
-		speechManager.reportNewMessage("Drop Bay Closing.");
 	}
 	
 	public void setTargetPos(GPSPos target) {
@@ -222,29 +222,19 @@ public class GPSTargeter {
 	 */
 	private void calculateTimeTillDrop() {
 		
-		  //Special Case: Plane is 'before' target, and est drop position is 'after' target.
-		  //Test: If drop easting and current easting are on opposite sides of the target easting (and same for nothing) 
-		  //This is the first if (which is used to prevent this scenario from triggering 'Moving away from target'
-		  double tEast = targetPos.getUTMEasting();
-		  double tNorth = targetPos.getUTMNorthing();
-		  double cEast = curPos.getUTMEasting();
-		  double cNorth = curPos.getUTMNorthing();
+	    //Need to handle case where moving away from target (PLANE is past target) and moving towards.
+	    //Note - you do not need to hangle the case where plane is before target and drop location is after - this falls under 
+	    //'moving towards' and can be handled the same way.
 		
-		    if(   estDropEasting > tEast && cEast < tEast      ||    estDropEasting < tEast && cEast > tEast || //Compare easting
-		          estDropNorthing > tNorth && cNorth < tNorth  ||    estDropNorthing < tNorth && cNorth > tNorth) //Compare northing
-		    {
-		      //This actually works properly. distAlongPathToMinLateralErr is positive, and horizontal distance  should be subtracted
-		      timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();
-		    }
-		    //Moving away from target
-		    else if(distFromEstDropPosToTarget > directDistanceToTarget)
-		    {
-		        timeTillDrop = (-distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();   //now distAlongPathToMinLateralErr is a negative
-		    }
-		    else
-		    {
-		        timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();
-		    }
+	    //Moving away from target
+	    if(distFromEstDropPosToTarget > directDistanceToTarget)
+	    {
+	        timeTillDrop = (-distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();   //now distAlongPathToMinLateralErr is a negative
+	    }
+	    else
+	    {
+	        timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / curPos.getVelocityMPS();
+	    }
 
 	}
 }
