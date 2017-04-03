@@ -22,6 +22,8 @@ import javax.swing.Timer;
 
 public class Targeter extends JPanel {
 	private static final Logger LOGGER = Logger.getLogger(AeroGUI.class.getName());
+	private static final SpeechManager SPEECH = SpeechManager.getInstance();
+	private static final Integer HDOP_WARNING_THRESH = 1000; // 1000 ms - Threshold at which point a verbal warning will be triggered
 	
 	//thread variables
 	Timer threadTimer; 
@@ -78,6 +80,12 @@ public class Targeter extends JPanel {
 	public GPSTargeter GSPTargeting;
 	
 	private boolean autoDropEnabled;
+	
+	// These variables are used to keep track of whether a verbal warning has been triggered recently
+	// regarding a communication failure (long time since last message received), or a large HDOP.
+	// This is necessary to avoid repeatedly warning the user of the same issue.
+	private boolean recentCommFailureWarning = false;
+	private boolean lastHDOPBad = false;
 	
 	
 	//constructor
@@ -218,7 +226,14 @@ public class Targeter extends JPanel {
     	
     	textFrame.drawString("Pos: (" + String.format( "%.1f", estDropPosXMetres) + ", " + String.format( "%.1f", estDropPosYMetres) + ")", startTextX, yTextSpace*yTextMult++);
     	if((dataAge/1000.0) > 3.0) { // If no new data has been received in 3.0 seconds
+    		if(!recentCommFailureWarning) {
+    			recentCommFailureWarning = true;
+    			SPEECH.reportNewMessage("Communication Failure.");
+    			LOGGER.warning("Data age has exceeded 3 seconds.");
+    		}
     		textFrame.setColor(Color.RED);
+    	} else {
+    		recentCommFailureWarning = false;
     	}
     	textFrame.drawString("Data Age: " + String.format( "%.2f",(dataAge/1000.0)) + " seconds", startTextX, yTextSpace*yTextMult++);
     	textFrame.setColor(Color.BLACK);
@@ -251,9 +266,18 @@ public class Targeter extends JPanel {
     		textFrame.drawString("Fix Quality = " + fixQuality, startTextX, yTextSpace*yTextMult++);
     	}
     	
-    	if(msSinceLastValidHDOP > 1500) {
+    	if(msSinceLastValidHDOP > HDOP_WARNING_THRESH) {
     		textFrame.setColor(Color.RED);
+    		if(!lastHDOPBad) {
+    			lastHDOPBad = true;
+    			SPEECH.reportNewMessage("Invalid H DOP.");
+    			LOGGER.warning("HDOP has been invalid for more than 1 second.");
+    		}
+    	} else {
+    		lastHDOPBad = false;
     	}
+    	
+
     	textFrame.drawString("Valid HDOP = " + msSinceLastValidHDOP + " ms", startTextX, yTextSpace*yTextMult++);
 		textFrame.setColor(Color.BLACK);		
 	}
